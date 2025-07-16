@@ -1,70 +1,116 @@
-# Getting Started with Create React App
+# 🍷 Wine Tasting Companion
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern, AI-powered Progressive Web App (PWA) for wine enthusiasts to discover, analyze, and track wines. Built with React, TypeScript, Firebase, and advanced AI integrations, this project showcases best practices in modular architecture, user experience, and full-stack development.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 🚀 Live Demo
 
-### `npm start`
+> [Add your deployed app link here!]
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+---
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## ✨ Features
 
-### `npm test`
+- **AI-Powered Recommendations:** Personalized wine suggestions based on your collection and preferences.
+- **AI Wine Analysis:** Get tasting notes, food pairings, and insights using OpenAI.
+- **Voice Notes & Transcription:** Record and transcribe tasting notes with speech-to-text.
+- **Barcode Scanning:** Quickly add wines by scanning barcodes.
+- **Analytics Dashboard:** Visualize your wine journey with charts and stats.
+- **PWA Support:** Installable, offline-ready, and mobile-friendly.
+- **Modern UI:** Built with Material UI and Tailwind CSS for a beautiful, responsive experience.
+- **Firebase Integration:** Real-time database, authentication, and storage.
+- **Modular, Scalable Codebase:** Feature-based folder structure for maintainability and growth.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## 🖼️ Screenshots
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+> _Add screenshots or GIFs here to showcase the UI and features._
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+---
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 🛠️ Tech Stack
 
-### `npm run eject`
+- **Frontend:** React, TypeScript, Material UI, Tailwind CSS
+- **Backend/Services:** Firebase (Auth, Firestore, Storage), OpenAI API
+- **PWA:** Service Workers, Offline Support
+- **Testing:** (Add your testing framework here, e.g., Jest, React Testing Library)
+- **CI/CD:** (Add if you use GitHub Actions, Vercel, Netlify, etc.)
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+---
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 📁 Project Structure
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```
+src/
+  features/         # Feature-based modules (dashboard, wine, analytics, etc.)
+  components/
+    common/         # Reusable UI components
+    layout/         # Layout components (navbar, sidebar, etc.)
+  api/              # API abstraction (Firebase, AI, weather)
+  context/          # Global context providers
+  hooks/            # Custom React hooks
+  constants/        # App-wide constants
+  types/            # TypeScript types/interfaces
+  utils/            # Utility functions
+  pages/            # Route-level wrappers (thin)
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+---
 
-## Learn More
+## 🏁 Getting Started
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+1. **Clone the repo:**
+   ```sh
+   git clone https://github.com/georgekasiyandima/wine-tasting-companion.git
+   cd wine-tasting-companion
+   ```
+2. **Install dependencies:**
+   ```sh
+   npm install
+   # or
+   yarn install
+   ```
+3. **Set up environment variables:**
+   - Copy `.env.example` to `.env` and fill in your Firebase and API keys.
+4. **Run the app locally:**
+   ```sh
+   npm start
+   # or
+   yarn start
+   ```
+5. **Build for production:**
+   ```sh
+   npm run build
+   # or
+   yarn build
+   ```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+---
 
-### Code Splitting
+## 🌍 Deployment
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+- Deploy easily to Vercel, Netlify, or Firebase Hosting.
+- [ ] _Add your live demo link above!_
 
-### Analyzing the Bundle Size
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## 🧑‍💻 Contributing & Contact
 
-### Making a Progressive Web App
+This project is part of my portfolio. Feedback, suggestions, and connections are welcome!
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+- [LinkedIn](https://www.linkedin.com/in/georgekasiyandima/)  
+- [GitHub](https://github.com/georgekasiyandima)
+- [Email](mailto:your.email@example.com)
 
-### Advanced Configuration
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## 🏅 Why This Project Stands Out
 
-### Deployment
+- **Real-world architecture:** Modular, scalable, and production-ready.
+- **Advanced features:** AI, voice, PWA, analytics, and more.
+- **Beautiful UI/UX:** Modern, accessible, and responsive design.
+- **Full-stack skills:** From frontend to backend, CI/CD, and deployment.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+> _Thank you for checking out my project!_
