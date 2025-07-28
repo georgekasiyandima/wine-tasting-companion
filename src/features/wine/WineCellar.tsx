@@ -42,7 +42,7 @@ import {
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { WineCellar, CellarWine, CellarAnalytics, CellarRecommendation } from '@/types';
-import { cellarService } from '@/services/firebase';
+import { cellarService } from '@/api/firebase';
 import { useApp } from '@/context/AppContext';
 import AnimatedCard from '@/components/common/AnimatedCard';
 

@@ -70,7 +70,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { Wine } from '@/types';
-import { WineService } from '@/services/firebase';
+import { WineService } from '@/api/firebase';
 import { useApp } from '@/context/AppContext';
 import { RATING_LABELS, POPULAR_REGIONS, POPULAR_GRAPES, PRICE_RANGES } from '@/constants';
 import WeatherWidget from '@/components/common/WeatherWidget';

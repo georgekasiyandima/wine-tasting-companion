@@ -39,10 +39,13 @@ import {
   AutoAwesome as DiscoveryIcon,
   Storage as StorageIcon,
   Flag as FlagIcon,
+  Inventory as InventoryIcon,
+  School as SchoolIcon,
+  WbSunny as WeatherIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { AuthService } from '@/services/firebase';
+import { AuthService } from '@/api/firebase';
 import { PROFILE_IMAGES } from '@/constants';
 import { Link } from 'react-router-dom';
 import BottomNavBar from './BottomNavBar';
@@ -135,6 +138,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Tasting Sessions', icon: <MicIcon />, path: '/tasting-sessions' },
     { text: 'Analytics', icon: <AssessmentIcon />, path: '/analytics' },
     { text: 'South Africa Wine', icon: <FlagIcon />, path: '/south-africa-wine' },
+    { text: 'Cruise Inventory', icon: <InventoryIcon />, path: '/inventory' },
+    { text: 'Staff Training', icon: <SchoolIcon />, path: '/training' },
+    { text: 'Weather Dashboard', icon: <WeatherIcon />, path: '/weather' },
     { text: 'Profile', icon: <PersonIcon />, path: '/profile' },
   ];
 
@@ -229,6 +235,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             {location.pathname === '/analytics' && 'Analytics'}
             {location.pathname === '/profile' && 'Profile'}
             {location.pathname === '/south-africa-wine' && 'South Africa Wine Regions'}
+            {location.pathname === '/inventory' && 'Cruise Ship Inventory'}
+            {location.pathname === '/training' && 'Staff Training Center'}
+            {location.pathname === '/weather' && 'Cruise Weather Dashboard'}
           </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

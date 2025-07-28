@@ -196,6 +196,31 @@ export interface Notification {
   duration?: number;
 }
 
+// Weather Types
+export interface WeatherData {
+  city: string;
+  country: string;
+  temperature: number;
+  condition: 'sunny' | 'cloudy' | 'rainy' | 'hot' | 'cold' | 'stormy';
+  description: string;
+  humidity: number;
+  windSpeed: number;
+  pressure: number;
+  visibility: number;
+  sunrise: Date;
+  sunset: Date;
+  timestamp: number;
+}
+
+export interface WeatherWineRecommendation {
+  description: string;
+  recommendations: string[];
+  tips: string;
+  pairing: string;
+  servingTemp: string;
+  cruiseShipTip: string;
+}
+
 // Wine Cellar Management Types
 export interface WineCellar {
   id: string;

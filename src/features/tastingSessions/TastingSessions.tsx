@@ -31,9 +31,9 @@ import {
   AutoAwesome as AIIcon,
 } from '@mui/icons-material';
 import { Wine, TastingSession } from '@/types';
-import { TastingSessionService } from '@/services/firebase';
+import { TastingSessionService } from '@/api/firebase';
 import { useApp } from '@/context/AppContext';
-import { aiService } from '@/services/ai';
+import { aiService } from '@/api/ai';
 import VoiceTranscription from './VoiceTranscription';
 
 interface TabPanelProps {

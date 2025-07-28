@@ -25,7 +25,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Wine } from '@/types';
-import { WineService } from '@/services/firebase';
+import { WineService } from '@/api/firebase';
 import { useApp } from '@/context/AppContext';
 import { RATING_LABELS } from '@/constants';
 import AIAnalysisDialog from './AIAnalysisDialog';

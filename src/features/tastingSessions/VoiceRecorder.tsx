@@ -18,7 +18,7 @@ import {
   Delete,
   CloudUpload
 } from '@mui/icons-material';
-import { uploadVoiceNote } from '@/services/firebase';
+import { uploadVoiceNote } from '@/api/firebase';
 
 interface VoiceRecorderProps {
   onRecordingComplete?: (audioUrl: string) => void;

@@ -32,7 +32,7 @@ import {
   WineBar,
   Restaurant,
 } from '@mui/icons-material';
-import { aiService } from '@/services/ai';
+import { aiService } from '@/api/ai';
 
 interface VoiceTranscriptionProps {
   onTranscriptionComplete?: (text: string, insights: any) => void;

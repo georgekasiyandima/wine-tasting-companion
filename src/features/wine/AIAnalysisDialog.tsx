@@ -33,7 +33,7 @@ import {
   AccessTime as AccessTimeIcon
 } from '@mui/icons-material';
 import { Wine } from '@/types';
-import { aiService, AIWineAnalysis, AIRecommendation } from '@/services/ai';
+import { aiService, AIWineAnalysis, AIRecommendation } from '@/api/ai';
 
 interface AIAnalysisDialogProps {
   open: boolean;

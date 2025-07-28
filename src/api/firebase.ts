@@ -626,18 +626,31 @@ export { database, auth, storage };
 export class CellarService {
   private db = getFirestore();
   private storage = getStorage();
+  
+  // For demo mode compatibility
+  private isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
-  // Cellar Management
   async createCellar(cellar: Omit<WineCellar, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const cellarRef = collection(this.db, 'cellars');
-    const newCellar = {
-      ...cellar,
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-    
-    const docRef = await addDoc(cellarRef, newCellar);
-    return docRef.id;
+    if (this.isDemoMode) {
+      const cellarId = `demo-cellar-${Date.now()}`;
+      console.log('Demo mode: Cellar created successfully', { cellarId, cellar });
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return cellarId;
+    }
+
+    try {
+      const cellarData = {
+        ...cellar,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      
+      const docRef = await addDoc(collection(this.db, 'cellars'), cellarData);
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating cellar:', error);
+      throw new Error('Failed to create cellar');
+    }
   }
 
   async getCellars(userId: string): Promise<WineCellar[]> {

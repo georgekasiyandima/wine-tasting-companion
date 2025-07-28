@@ -34,7 +34,7 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { useApp } from '@/context/AppContext';
 import { Wine, WineAnalytics } from '@/types';
-import { WineService } from '@/services/firebase';
+import { WineService } from '@/api/firebase';
 import { PROFILE_IMAGES } from '@/constants';
 
 interface TabPanelProps {

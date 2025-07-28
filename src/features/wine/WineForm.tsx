@@ -46,7 +46,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { useApp } from '@/context/AppContext';
 import { Wine } from '@/types';
-import { WineService, uploadWineImage } from '@/services/firebase';
+import { WineService, uploadWineImage } from '@/api/firebase';
 import {
   WINE_CLARITY_OPTIONS,
   WINE_INTENSITY_OPTIONS,
@@ -62,7 +62,7 @@ import {
   POPULAR_GRAPES,
   RATING_LABELS,
 } from '@/constants';
-import { aiService, AISuggestion } from '@/services/ai';
+import { aiService, AISuggestion } from '@/api/ai';
 import BarcodeScanner from './BarcodeScanner';
 
 interface TabPanelProps {
@@ -328,6 +328,8 @@ export default function WineForm() {
   const onSubmit = async (data: Wine) => {
     try {
       setLoading(true);
+      console.log('Submitting wine data:', data);
+      
       if (id) {
         await WineService.updateWine(id, data, state.user?.id);
         addNotification({
@@ -335,17 +337,24 @@ export default function WineForm() {
           message: 'Wine updated successfully!',
         });
       } else {
-        await WineService.addWine(data, state.user?.id);
+        const wineId = await WineService.addWine(data, state.user?.id);
+        console.log('Wine added with ID:', wineId);
         addNotification({
           type: 'success',
           message: 'Wine added successfully!',
         });
       }
-      navigate('/wines');
+      
+      // Add a small delay to ensure the notification is shown
+      setTimeout(() => {
+        navigate('/wines');
+      }, 1000);
+      
     } catch (error) {
+      console.error('Error submitting wine:', error);
       addNotification({
         type: 'error',
-        message: 'Failed to save wine',
+        message: 'Failed to save wine: ' + (error instanceof Error ? error.message : 'Unknown error'),
       });
     } finally {
       setLoading(false);

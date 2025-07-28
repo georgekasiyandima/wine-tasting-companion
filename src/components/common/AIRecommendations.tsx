@@ -22,7 +22,7 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { Wine } from '@/types';
-import { aiService, AIRecommendation } from '@/services/ai';
+import { aiService, AIRecommendation } from '@/api/ai';
 
 interface AIRecommendationsProps {
   userWines: Wine[];

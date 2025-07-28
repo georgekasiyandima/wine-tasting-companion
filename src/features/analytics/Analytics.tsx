@@ -43,7 +43,7 @@ import {
 } from '@mui/icons-material';
 import { useApp } from '@/context/AppContext';
 import { Wine, WineAnalytics } from '@/types';
-import { WineService } from '@/services/firebase';
+import { WineService } from '@/api/firebase';
 import { RATING_LABELS } from '@/constants';
 import AIInsights from './AIInsights';
 

@@ -28,7 +28,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { useApp } from '@/context/AppContext';
-import { AuthService } from '@/services/firebase';
+import { AuthService } from '@/api/firebase';
 
 interface TabPanelProps {
   children?: React.ReactNode;

@@ -54,7 +54,7 @@ import {
 import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
 import { useNavigate } from 'react-router-dom';
 import { Wine } from '@/types';
-import { WineService } from '@/services/firebase';
+import { WineService } from '@/api/firebase';
 import { useApp } from '@/context/AppContext';
 import { RATING_LABELS, POPULAR_REGIONS, POPULAR_GRAPES } from '@/constants';
 
@@ -93,13 +93,17 @@ export default function WineList() {
   const loadWines = async () => {
     try {
       setLoading(true);
+      console.log('Loading wines for user:', state.user?.id);
       const wineList = await WineService.getWines(state.user?.id);
+      console.log('Loaded wines:', wineList);
       setWines(wineList);
     } catch (error) {
+      console.error('Error loading wines:', error);
       addNotification({
         type: 'error',
-        message: 'Failed to load wines',
+        message: 'Failed to load wines: ' + (error instanceof Error ? error.message : 'Unknown error'),
       });
+      setWines([]); // Set empty array instead of leaving undefined
     } finally {
       setLoading(false);
     }

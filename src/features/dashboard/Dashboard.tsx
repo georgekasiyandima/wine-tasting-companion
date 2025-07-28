@@ -41,7 +41,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { Wine, WineAnalytics } from '@/types';
-import { WineService } from '@/services/firebase';
+import { WineService } from '@/api/firebase';
 import { useApp } from '@/context/AppContext';
 import AIRecommendations from '@/components/common/AIRecommendations';
 import WeatherWidget from '@/components/common/WeatherWidget';

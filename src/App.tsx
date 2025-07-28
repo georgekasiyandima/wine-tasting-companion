@@ -29,6 +29,9 @@ import LandingPage from './pages/LandingPage';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import SouthAfricaWine from "./pages/SouthAfricaWine";
+import InventoryDashboard from "./features/inventory/InventoryDashboard";
+import TrainingCenter from "./features/training/TrainingCenter";
+import CruiseWeatherDashboard from "./features/weather/CruiseWeatherDashboard";
 
 // Theme configuration
 const createAppTheme = (mode: 'light' | 'dark') => createTheme({
@@ -199,6 +202,21 @@ function AppContent() {
                 <Route path="/south-africa-wine" element={
                   <ProtectedRoute>
                     <SouthAfricaWine />
+                  </ProtectedRoute>
+                } />
+                <Route path="/inventory" element={
+                  <ProtectedRoute>
+                    <InventoryDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/training" element={
+                  <ProtectedRoute>
+                    <TrainingCenter />
+                  </ProtectedRoute>
+                } />
+                <Route path="/weather" element={
+                  <ProtectedRoute>
+                    <CruiseWeatherDashboard />
                   </ProtectedRoute>
                 } />
               </Routes>

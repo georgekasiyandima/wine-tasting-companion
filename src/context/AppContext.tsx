@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { Theme, Notification, User, UserPreferences } from '@/types';
 import { STORAGE_KEYS } from '@/constants';
-import { AuthService } from '@/services/firebase';
+import { AuthService } from '@/api/firebase';
 
 // State interface
 interface AppState {
