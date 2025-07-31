@@ -86,6 +86,16 @@ export default function WineCellarPage() {
   const [wineDialogOpen, setWineDialogOpen] = useState(false);
   const [editingCellar, setEditingCellar] = useState<WineCellar | null>(null);
   const [editingWine, setEditingWine] = useState<CellarWine | null>(null);
+  
+  // Form states for cellar creation
+  const [cellarFormData, setCellarFormData] = useState({
+    name: '',
+    description: '',
+    location: '',
+    temperature: 14,
+    humidity: 70,
+    capacity: 100
+  });
 
   useEffect(() => {
     if (state.user?.id) {
@@ -102,16 +112,25 @@ export default function WineCellarPage() {
   const loadCellars = async () => {
     try {
       setLoading(true);
-      const userCellars = await cellarService.getCellars(state.user!.id);
+      console.log('Loading cellars for user:', state.user?.id);
+      
+      if (!state.user?.id) {
+        console.error('No user ID available for loading cellars');
+        return;
+      }
+      
+      const userCellars = await cellarService.getCellars(state.user.id);
+      console.log('Loaded cellars:', userCellars);
       setCellars(userCellars);
       
       if (userCellars.length > 0 && !selectedCellar) {
         setSelectedCellar(userCellars[0]);
       }
     } catch (error) {
+      console.error('Error loading cellars:', error);
       addNotification({
         type: 'error',
-        message: 'Failed to load cellars',
+        message: `Failed to load cellars: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
     } finally {
       setLoading(false);
@@ -177,10 +196,19 @@ export default function WineCellarPage() {
 
   const handleCreateCellar = async (cellarData: Omit<WineCellar, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
     try {
+      console.log('Creating cellar with data:', cellarData);
+      console.log('User ID:', state.user?.id);
+      
+      if (!state.user?.id) {
+        throw new Error('User not authenticated');
+      }
+      
       const cellarId = await cellarService.createCellar({
         ...cellarData,
-        userId: state.user!.id
+        userId: state.user.id
       });
+      
+      console.log('Cellar created successfully with ID:', cellarId);
       
       addNotification({
         type: 'success',
@@ -188,13 +216,121 @@ export default function WineCellarPage() {
       });
       
       setCellarDialogOpen(false);
+      setEditingCellar(null);
+      resetCellarForm();
+      await loadCellars();
+    } catch (error) {
+      console.error('Error creating cellar:', error);
+      addNotification({
+        type: 'error',
+        message: `Failed to create cellar: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
+    }
+  };
+
+  const resetCellarForm = () => {
+    setCellarFormData({
+      name: '',
+      description: '',
+      location: '',
+      temperature: 14,
+      humidity: 70,
+      capacity: 100
+    });
+  };
+
+  const handleCellarFormSubmit = async () => {
+    console.log('=== CELLAR FORM SUBMIT START ===');
+    console.log('Form submit triggered with data:', cellarFormData);
+    console.log('User state:', state.user);
+    console.log('Editing cellar:', editingCellar);
+    
+    try {
+      // Validation
+      if (!cellarFormData.name.trim()) {
+        console.log('Validation failed: No cellar name');
+        addNotification({
+          type: 'error',
+          message: 'Please enter a cellar name',
+        });
+        return;
+      }
+      
+      if (!cellarFormData.location.trim()) {
+        console.log('Validation failed: No cellar location');
+        addNotification({
+          type: 'error',
+          message: 'Please enter a cellar location',
+        });
+        return;
+      }
+
+      if (!state.user?.id) {
+        console.log('Validation failed: No user ID');
+        addNotification({
+          type: 'error',
+          message: 'User not authenticated. Please log in.',
+        });
+        return;
+      }
+
+      console.log('Validation passed, proceeding with cellar operation...');
+
+      if (editingCellar) {
+        console.log('Updating existing cellar:', editingCellar.id);
+        await handleUpdateCellar(editingCellar.id, cellarFormData);
+      } else {
+        console.log('Creating new cellar');
+        await handleCreateCellar(cellarFormData);
+      }
+      
+      console.log('=== CELLAR FORM SUBMIT SUCCESS ===');
+    } catch (error) {
+      console.error('=== CELLAR FORM SUBMIT ERROR ===', error);
+      addNotification({
+        type: 'error',
+        message: `Form submission failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
+    }
+  };
+
+  const handleUpdateCellar = async (cellarId: string, updates: Partial<WineCellar>) => {
+    try {
+      await cellarService.updateCellar(cellarId, updates);
+      
+      addNotification({
+        type: 'success',
+        message: 'Cellar updated successfully',
+      });
+      
+      setCellarDialogOpen(false);
+      setEditingCellar(null);
+      resetCellarForm();
       loadCellars();
     } catch (error) {
       addNotification({
         type: 'error',
-        message: 'Failed to create cellar',
+        message: 'Failed to update cellar',
       });
     }
+  };
+
+  const openCellarDialog = (cellar?: WineCellar) => {
+    if (cellar) {
+      setEditingCellar(cellar);
+      setCellarFormData({
+        name: cellar.name,
+        description: cellar.description || '',
+        location: cellar.location,
+        temperature: cellar.temperature,
+        humidity: cellar.humidity,
+        capacity: cellar.capacity
+      });
+    } else {
+      setEditingCellar(null);
+      resetCellarForm();
+    }
+    setCellarDialogOpen(true);
   };
 
   const handleAddWine = async (wineData: Omit<CellarWine, 'id' | 'timestamp'>) => {
@@ -326,7 +462,7 @@ export default function WineCellarPage() {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => setCellarDialogOpen(true)}
+            onClick={() => openCellarDialog()}
           >
             Add Cellar
           </Button>
@@ -547,7 +683,7 @@ export default function WineCellarPage() {
                     startIcon={<EditIcon />}
                     onClick={() => {
                       setEditingCellar(selectedCellar);
-                      setCellarDialogOpen(true);
+                      openCellarDialog();
                     }}
                     sx={{ mr: 2 }}
                   >
@@ -579,7 +715,7 @@ export default function WineCellarPage() {
               variant="contained"
               size="large"
               startIcon={<AddIcon />}
-              onClick={() => setCellarDialogOpen(true)}
+              onClick={() => openCellarDialog()}
             >
               Create Your First Cellar
             </Button>
@@ -588,7 +724,11 @@ export default function WineCellarPage() {
       )}
 
       {/* Add/Edit Cellar Dialog */}
-      <Dialog open={cellarDialogOpen} onClose={() => setCellarDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={cellarDialogOpen} onClose={() => {
+        setCellarDialogOpen(false);
+        setEditingCellar(null);
+        resetCellarForm();
+      }} maxWidth="sm" fullWidth>
         <DialogTitle>
           {editingCellar ? 'Edit Cellar' : 'Create New Cellar'}
         </DialogTitle>
@@ -597,22 +737,27 @@ export default function WineCellarPage() {
             <TextField
               fullWidth
               label="Cellar Name"
-              defaultValue={editingCellar?.name || ''}
+              value={cellarFormData.name}
+              onChange={(e) => setCellarFormData({ ...cellarFormData, name: e.target.value })}
               sx={{ mb: 2 }}
+              required
             />
             <TextField
               fullWidth
               label="Description"
               multiline
               rows={3}
-              defaultValue={editingCellar?.description || ''}
+              value={cellarFormData.description}
+              onChange={(e) => setCellarFormData({ ...cellarFormData, description: e.target.value })}
               sx={{ mb: 2 }}
             />
             <TextField
               fullWidth
               label="Location"
-              defaultValue={editingCellar?.location || ''}
+              value={cellarFormData.location}
+              onChange={(e) => setCellarFormData({ ...cellarFormData, location: e.target.value })}
               sx={{ mb: 2 }}
+              required
             />
             <Grid container spacing={2}>
               <Grid item xs={6}>
@@ -620,7 +765,9 @@ export default function WineCellarPage() {
                   fullWidth
                   label="Temperature (°C)"
                   type="number"
-                  defaultValue={editingCellar?.temperature || 14}
+                  value={cellarFormData.temperature}
+                  onChange={(e) => setCellarFormData({ ...cellarFormData, temperature: Number(e.target.value) })}
+                  inputProps={{ min: 0, max: 30 }}
                 />
               </Grid>
               <Grid item xs={6}>
@@ -628,7 +775,9 @@ export default function WineCellarPage() {
                   fullWidth
                   label="Humidity (%)"
                   type="number"
-                  defaultValue={editingCellar?.humidity || 70}
+                  value={cellarFormData.humidity}
+                  onChange={(e) => setCellarFormData({ ...cellarFormData, humidity: Number(e.target.value) })}
+                  inputProps={{ min: 0, max: 100 }}
                 />
               </Grid>
             </Grid>
@@ -636,14 +785,29 @@ export default function WineCellarPage() {
               fullWidth
               label="Capacity (bottles)"
               type="number"
-              defaultValue={editingCellar?.capacity || 100}
+              value={cellarFormData.capacity}
+              onChange={(e) => setCellarFormData({ ...cellarFormData, capacity: Number(e.target.value) })}
               sx={{ mt: 2 }}
+              inputProps={{ min: 1 }}
+              required
             />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCellarDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={() => setCellarDialogOpen(false)}>
+          <Button onClick={() => {
+            setCellarDialogOpen(false);
+            setEditingCellar(null);
+            resetCellarForm();
+          }}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            onClick={(e) => {
+              console.log('Create button clicked!', e);
+              e.preventDefault();
+              handleCellarFormSubmit();
+            }}
+            disabled={!cellarFormData.name.trim() || !cellarFormData.location.trim()}
+          >
             {editingCellar ? 'Update' : 'Create'}
           </Button>
         </DialogActions>

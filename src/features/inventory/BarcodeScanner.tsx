@@ -32,7 +32,7 @@ import {
   Error as ErrorIcon,
   Refresh as RefreshIcon,
   WineBar as WineIcon,
-  Eco as EcoIcon,
+  Nature as EcoIcon,
   TrendingUp as TrendingUpIcon,
   Info as InfoIcon,
 } from '@mui/icons-material';

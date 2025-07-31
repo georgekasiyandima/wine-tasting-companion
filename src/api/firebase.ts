@@ -19,7 +19,8 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  connectAuthEmulator
 } from 'firebase/auth';
 import {
   getStorage,
@@ -27,8 +28,19 @@ import {
   uploadBytesResumable,
   getDownloadURL
 } from 'firebase/storage';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  query as firestoreQuery, 
+  where, 
+  getDocs, 
+  doc, 
+  updateDoc, 
+  deleteDoc,
+  connectFirestoreEmulator
+} from 'firebase/firestore';
 import { Wine, TastingSession, User, WineCellar, CellarWine, CellarAnalytics } from '@/types';
-import { getFirestore, collection, addDoc, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 // Check if we're in demo mode
 const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
@@ -37,14 +49,16 @@ if (isDemoMode) {
   console.log('🚀 Running in DEMO MODE - Firebase features will be simulated');
 }
 
+// Firebase configuration using environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyC85ZnB1Zgudtjs_4jljn9X321U8fUAzhs",
-  authDomain: "winetastingcompanion.firebaseapp.com",
-  projectId: "winetastingcompanion",
-  storageBucket: "winetastingcompanion.firebasestorage.app",
-  messagingSenderId: "854067954121",
-  appId: "1:854067954121:web:93bc2608e81399158be818",
-  measurementId: "G-KRR9TJ2YF5"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyC85ZnB1Zgudtjs_4jljn9X321U8fUAzhs",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "winetastingcompanion.firebaseapp.com",
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || "https://winetastingcompanion-default-rtdb.firebaseio.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "winetastingcompanion",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "winetastingcompanion.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "854067954121",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:854067954121:web:93bc2608e81399158be818",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-KRR9TJ2YF5"
 };
 
 // Initialize Firebase
@@ -52,7 +66,13 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
-const firestore = getFirestore();
+const firestore = getFirestore(app);
+
+// Connect to emulators if enabled
+if (import.meta.env.VITE_USE_EMULATOR === 'true') {
+  connectAuthEmulator(auth, `http://${import.meta.env.VITE_EMULATOR_HOST}:${import.meta.env.VITE_AUTH_EMULATOR_PORT}`);
+  connectFirestoreEmulator(firestore, import.meta.env.VITE_EMULATOR_HOST, parseInt(import.meta.env.VITE_FIRESTORE_EMULATOR_PORT));
+}
 
 // Database references
 export const dbRefs = {
@@ -620,113 +640,191 @@ export async function uploadVoiceNote(audioBlob: Blob, fileName: string): Promis
   });
 }
 
-export { database, auth, storage };
-
 // Wine Cellar Management Services
 export class CellarService {
-  private db = getFirestore();
-  private storage = getStorage();
+  private get db() {
+    if (!firestore) {
+      throw new Error('Firestore not initialized. Please check your Firebase configuration.');
+    }
+    return firestore;
+  }
+  
+  private get storage() {
+    if (!storage) {
+      throw new Error('Storage not initialized. Please check your Firebase configuration.');
+    }
+    return storage;
+  }
   
   // For demo mode compatibility
   private isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
+  private handleFirebaseError(error: any, operation: string): Error {
+    console.error(`Firebase ${operation} error:`, error);
+    
+    if (error?.code) {
+      switch (error.code) {
+        case 'permission-denied':
+          return new Error(`Access denied. Please check your authentication and permissions.`);
+        case 'unavailable':
+          return new Error(`Firebase service is currently unavailable. Please check your internet connection and try again.`);
+        case 'unauthenticated':
+          return new Error(`You must be signed in to perform this action.`);
+        case 'not-found':
+          return new Error(`The requested data was not found.`);
+        default:
+          return new Error(`Firebase error (${error.code}): ${error.message || 'Unknown error'}`);
+      }
+    }
+    
+    return new Error(`${operation} failed: ${error?.message || 'Unknown error'}`);
+  }
+
   async createCellar(cellar: Omit<WineCellar, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    console.log('CellarService.createCellar called with:', cellar);
+    console.log('Demo mode:', this.isDemoMode);
+    
     if (this.isDemoMode) {
       const cellarId = `demo-cellar-${Date.now()}`;
       console.log('Demo mode: Cellar created successfully', { cellarId, cellar });
+      
+      // Store in localStorage for demo mode persistence
+      const existingCellars = JSON.parse(localStorage.getItem('demo-cellars') || '[]');
+      const newCellar = {
+        id: cellarId,
+        ...cellar,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      existingCellars.push(newCellar);
+      localStorage.setItem('demo-cellars', JSON.stringify(existingCellars));
+      
       await new Promise(resolve => setTimeout(resolve, 500));
       return cellarId;
     }
 
     try {
+      console.log('Creating cellar in Firebase...');
       const cellarData = {
         ...cellar,
         createdAt: Date.now(),
         updatedAt: Date.now()
       };
       
-      const docRef = await addDoc(collection(this.db, 'cellars'), cellarData);
+      console.log('Cellar data to be saved:', cellarData);
+      const docRef = await addDoc(collection(this.db, `users/${cellar.userId}/cellars`), cellarData);
+      console.log('Firebase document created with ID:', docRef.id);
       return docRef.id;
     } catch (error) {
-      console.error('Error creating cellar:', error);
-      throw new Error('Failed to create cellar');
+      console.error('Error creating cellar in Firebase:', error);
+      throw new Error(`Failed to create cellar: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async getCellars(userId: string): Promise<WineCellar[]> {
-    const cellarRef = collection(this.db, 'cellars');
-    const q = query(cellarRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
+    console.log('CellarService.getCellars called for user:', userId);
+    console.log('Demo mode:', this.isDemoMode);
     
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as WineCellar[];
+    if (!userId) {
+      throw new Error('User ID is required to fetch cellars');
+    }
+    
+    if (this.isDemoMode) {
+      const demoCellars = JSON.parse(localStorage.getItem('demo-cellars') || '[]');
+      const userCellars = demoCellars.filter((cellar: WineCellar) => cellar.userId === userId);
+      console.log('Demo mode: Retrieved cellars from localStorage:', userCellars);
+      return userCellars;
+    }
+
+    try {
+      console.log('Querying Firebase for cellars...');
+      const querySnapshot = await getDocs(collection(this.db, `users/${userId}/cellars`));
+      const cellars = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as WineCellar));
+      
+      console.log('Firebase query result:', cellars);
+      return cellars;
+    } catch (error) {
+      throw this.handleFirebaseError(error, 'fetch cellars');
+    }
   }
 
-  async updateCellar(cellarId: string, updates: Partial<WineCellar>): Promise<void> {
-    const cellarRef = doc(this.db, 'cellars', cellarId);
-    await updateDoc(cellarRef, {
-      ...updates,
-      updatedAt: Date.now()
-    });
+  async updateCellar(cellarId: string, updates: Partial<WineCellar>, userId: string): Promise<void> {
+    try {
+      const cellarRef = doc(this.db, `users/${userId}/cellars`, cellarId);
+      await updateDoc(cellarRef, {
+        ...updates,
+        updatedAt: Date.now()
+      });
+    } catch (error) {
+      throw this.handleFirebaseError(error, 'update cellar');
+    }
   }
 
-  async deleteCellar(cellarId: string): Promise<void> {
-    const cellarRef = doc(this.db, 'cellars', cellarId);
-    await deleteDoc(cellarRef);
+  async deleteCellar(cellarId: string, userId: string): Promise<void> {
+    try {
+      const cellarRef = doc(this.db, `users/${userId}/cellars`, cellarId);
+      await deleteDoc(cellarRef);
+    } catch (error) {
+      throw this.handleFirebaseError(error, 'delete cellar');
+    }
   }
 
-  // Cellar Wine Management
+  // Cellar Wine Management with nested collection structure
+  async getCellarWines(userId: string, cellarId: string): Promise<CellarWine[]> {
+    try {
+      const querySnapshot = await getDocs(collection(this.db, `users/${userId}/cellars/${cellarId}/wines`));
+      return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as CellarWine));
+    } catch (error) {
+      throw this.handleFirebaseError(error, 'fetch cellar wines');
+    }
+  }
+
+  async addWine(userId: string, cellarId: string, wine: Omit<CellarWine, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(this.db, `users/${userId}/cellars/${cellarId}/wines`), {
+        ...wine,
+        addedDate: Date.now()
+      });
+      return docRef.id;
+    } catch (error) {
+      throw this.handleFirebaseError(error, 'add wine');
+    }
+  }
+
+  async updateWine(userId: string, cellarId: string, wine: Partial<CellarWine>): Promise<void> {
+    try {
+      const wineRef = doc(this.db, `users/${userId}/cellars/${cellarId}/wines`, wine.id!);
+      const { id, ...updateData } = wine;
+      await updateDoc(wineRef, updateData);
+    } catch (error) {
+      throw this.handleFirebaseError(error, 'update wine');
+    }
+  }
+
+  async deleteWine(userId: string, cellarId: string, wineId: string): Promise<void> {
+    try {
+      const wineRef = doc(this.db, `users/${userId}/cellars/${cellarId}/wines`, wineId);
+      await deleteDoc(wineRef);
+    } catch (error) {
+      throw this.handleFirebaseError(error, 'delete wine');
+    }
+  }
+
+  // Legacy methods for backward compatibility - these will be updated in InventoryDashboard
   async addWineToCellar(wine: Omit<CellarWine, 'id' | 'timestamp'>): Promise<string> {
-    const wineRef = collection(this.db, 'cellarWines');
-    const newWine = {
-      ...wine,
-      timestamp: Date.now()
-    };
-    
-    const docRef = await addDoc(wineRef, newWine);
-    return docRef.id;
-  }
-
-  async getCellarWines(cellarId: string): Promise<CellarWine[]> {
-    const wineRef = collection(this.db, 'cellarWines');
-    const q = query(wineRef, where('cellarId', '==', cellarId));
-    const snapshot = await getDocs(q);
-    
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as CellarWine[];
+    throw new Error('Use addWine method with userId and cellarId parameters');
   }
 
   async updateCellarWine(wineId: string, updates: Partial<CellarWine>): Promise<void> {
-    const wineRef = doc(this.db, 'cellarWines', wineId);
-    await updateDoc(wineRef, {
-      ...updates,
-      timestamp: Date.now()
-    });
+    throw new Error('Use updateWine method with userId and cellarId parameters');
   }
 
   async removeWineFromCellar(wineId: string): Promise<void> {
-    const wineRef = doc(this.db, 'cellarWines', wineId);
-    await deleteDoc(wineRef);
+    throw new Error('Use deleteWine method with userId and cellarId parameters');
   }
 
-  async getUserCellarWines(userId: string): Promise<CellarWine[]> {
-    const wineRef = collection(this.db, 'cellarWines');
-    const q = query(wineRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
-    
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as CellarWine[];
-  }
-
-  // Cellar Analytics
   async getCellarAnalytics(cellarId: string): Promise<CellarAnalytics> {
-    const wines = await this.getCellarWines(cellarId);
+    const wines = await this.getCellarWines(cellarId, '');
     
     if (wines.length === 0) {
       return {
@@ -744,7 +842,7 @@ export class CellarService {
 
     const totalValue = wines.reduce((sum, wine) => sum + (wine.purchasePrice * wine.quantity), 0);
     const averageAge = wines.reduce((sum, wine) => {
-      const age = (Date.now() - wine.purchaseDate) / (1000 * 60 * 60 * 24 * 365);
+      const age = (Date.now() - wine.addedDate) / (1000 * 60 * 60 * 24 * 365);
       return sum + age;
     }, 0) / wines.length;
 
@@ -761,8 +859,8 @@ export class CellarService {
     // Group by grape
     const grapeMap = new Map<string, { count: number; value: number }>();
     wines.forEach(wine => {
-      const existing = grapeMap.get(wine.grape) || { count: 0, value: 0 };
-      grapeMap.set(wine.grape, {
+      const existing = grapeMap.get(wine.grape || '') || { count: 0, value: 0 };
+      grapeMap.set(wine.grape || '', {
         count: existing.count + wine.quantity,
         value: existing.value + (wine.purchasePrice * wine.quantity)
       });
@@ -770,20 +868,20 @@ export class CellarService {
 
     // Aging wines (not ready to drink yet)
     const agingWines = wines.filter(wine => {
-      const age = (Date.now() - wine.purchaseDate) / (1000 * 60 * 60 * 24 * 365);
-      return age < wine.agingPotential;
+      const age = (Date.now() - wine.addedDate) / (1000 * 60 * 60 * 24 * 365);
+      return age < (wine.agingPotential || 5);
     });
 
     // Ready to drink
     const readyToDrink = wines.filter(wine => {
-      const age = (Date.now() - wine.purchaseDate) / (1000 * 60 * 60 * 24 * 365);
-      return age >= wine.agingPotential && age <= wine.agingPotential + 2;
+      const age = (Date.now() - wine.addedDate) / (1000 * 60 * 60 * 24 * 365);
+      return age >= (wine.agingPotential || 5) && age <= (wine.agingPotential || 5) + 2;
     });
 
     // Overdue wines
     const overdueWines = wines.filter(wine => {
-      const age = (Date.now() - wine.purchaseDate) / (1000 * 60 * 60 * 24 * 365);
-      return age > wine.agingPotential + 2;
+      const age = (Date.now() - (wine.addedDate)) / (1000 * 60 * 60 * 24 * 365);
+      return age > (wine.agingPotential || 5) + 2;
     });
 
     // Value by price range
@@ -825,5 +923,44 @@ export class CellarService {
   }
 }
 
+// Clean CellarService implementation with your specified CRUD methods
+export const cleanCellarService = {
+  getCellars: async (userId: string): Promise<WineCellar[]> => {
+    const firestore = getFirestoreInstance();
+    const querySnapshot = await getDocs(collection(firestore, `users/${userId}/cellars`));
+    return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as WineCellar));
+  },
+  
+  getCellarWines: async (userId: string, cellarId: string): Promise<CellarWine[]> => {
+    const firestore = getFirestoreInstance();
+    const querySnapshot = await getDocs(collection(firestore, `users/${userId}/cellars/${cellarId}/wines`));
+    return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as CellarWine));
+  },
+  
+  addWine: async (userId: string, cellarId: string, wine: Omit<CellarWine, 'id'>): Promise<string> => {
+    const firestore = getFirestoreInstance();
+    const docRef = await addDoc(collection(firestore, `users/${userId}/cellars/${cellarId}/wines`), {
+      ...wine,
+      addedDate: Date.now()
+    });
+    return docRef.id;
+  },
+  
+  updateWine: async (userId: string, cellarId: string, wine: CellarWine): Promise<void> => {
+    const firestore = getFirestoreInstance();
+    const wineRef = doc(firestore, `users/${userId}/cellars/${cellarId}/wines`, wine.id);
+    const { id, ...updateData } = wine;
+    await updateDoc(wineRef, updateData);
+  },
+  
+  deleteWine: async (userId: string, cellarId: string, wineId: string): Promise<void> => {
+    const firestore = getFirestoreInstance();
+    const wineRef = doc(firestore, `users/${userId}/cellars/${cellarId}/wines`, wineId);
+    await deleteDoc(wineRef);
+  }
+};
+
 // Export cellar service instance
-export const cellarService = new CellarService(); 
+export const cellarService = new CellarService();
+
+export { database, auth, storage };

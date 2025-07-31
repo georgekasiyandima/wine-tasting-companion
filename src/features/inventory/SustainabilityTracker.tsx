@@ -23,7 +23,7 @@ import {
   Stack,
 } from '@mui/material';
 import {
-  Eco as EcoIcon,
+  Nature as EcoIcon,
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
   CheckCircle as CheckIcon,
