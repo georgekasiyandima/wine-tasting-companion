@@ -1,11 +1,11 @@
 
      import React, { useState, useEffect, useCallback } from 'react';
-     import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, IconButton, CircularProgress } from '@mui/material';
-     import { Edit, Delete } from '@mui/icons-material';
-     import { cleanCellarService } from '@/api/firebase';
-     import { WineCellar, CellarWine } from '@/types';
-     import WeatherWidget from '@/components/common/WeatherWidget';
-     import { useApp } from '@/contexts/AppContext';
+import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, IconButton, CircularProgress, Alert } from '@mui/material';
+import { Edit, Delete } from '@mui/icons-material';
+import { cleanCellarService } from '@/api/backend';
+import { WineCellar, CellarWine } from '@/types';
+import WeatherWidget from '@/components/common/WeatherWidget';
+import { useApp } from '@/context/AppContext';
 
      interface SortConfig {
        key: keyof CellarWine;
@@ -13,40 +13,51 @@
      }
 
      const InventoryDashboard: React.FC = () => {
-       const { state: { user } } = useApp();
-       const [cellars, setCellars] = useState<WineCellar[]>([]);
-       const [wines, setWines] = useState<CellarWine[]>([]);
-       const [loading, setLoading] = useState(true);
-       const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const { state: { user }, login } = useApp();
+  const [cellars, setCellars] = useState<WineCellar[]>([]);
+  const [wines, setWines] = useState<CellarWine[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
-       const loadInventory = useCallback(async () => {
-         if (!user?.id) {
-           console.error('No user ID available');
-           setLoading(false);
-           return;
-         }
+  // Debug logging
+  console.log('InventoryDashboard render - user:', user);
+  console.log('InventoryDashboard render - loading:', loading);
+  console.log('InventoryDashboard render - error:', error);
 
-         try {
-           setLoading(true);
-           console.log('Loading inventory for user:', user.id);
-           const userCellars = await cleanCellarService.getCellars(user.id);
-           console.log('Fetched cellars:', userCellars);
+         const loadInventory = useCallback(async () => {
+    console.log('loadInventory called - user:', user);
+    
+    if (!user?.id) {
+      console.error('No user ID available');
+      setError('User not authenticated');
+      setLoading(false);
+      return;
+    }
 
-           let allWines: CellarWine[] = [];
-           for (const cellar of userCellars) {
-             const cellarWines = await cleanCellarService.getCellarWines(user.id, cellar.id);
-             allWines = [...allWines, ...cellarWines];
-           }
-           console.log('Fetched wines:', allWines);
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('Loading inventory for user:', user.id);
+      const userCellars = await cleanCellarService.getCellars(user.id);
+      console.log('Fetched cellars:', userCellars);
 
-           setCellars(userCellars);
-           setWines(allWines);
-         } catch (error) {
-           console.error('Error loading inventory:', error);
-         } finally {
-           setLoading(false);
-         }
-       }, [user]);
+      let allWines: CellarWine[] = [];
+      for (const cellar of userCellars) {
+        const cellarWines = await cleanCellarService.getCellarWines(user.id, cellar.id);
+        allWines = [...allWines, ...cellarWines];
+      }
+      console.log('Fetched wines:', allWines);
+
+      setCellars(userCellars);
+      setWines(allWines);
+    } catch (error) {
+      console.error('Error loading inventory:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load inventory');
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
        useEffect(() => {
          loadInventory();
@@ -72,15 +83,16 @@
          // Implement edit logic (e.g., open a modal)
        };
 
-       const handleDeleteWine = async (cellarId: string, wineId: string) => {
-         if (!user?.id) return;
-         try {
-           await cleanCellarService.deleteWine(user.id, cellarId, wineId);
-           setWines(wines.filter(wine => wine.id !== wineId));
-         } catch (error) {
-           console.error('Error deleting wine:', error);
-         }
-       };
+         const handleDeleteWine = async (cellarId: string, wineId: string) => {
+    if (!user?.id) return;
+    try {
+      await cleanCellarService.deleteWine(user.id, cellarId, wineId);
+      setWines(wines.filter(wine => wine.id !== wineId));
+    } catch (error) {
+      console.error('Error deleting wine:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete wine');
+    }
+  };
 
        if (loading) {
          return (
@@ -90,17 +102,32 @@
          );
        }
 
-       return (
-         <Box sx={{ p: 3 }}>
-           <Typography variant="h4" gutterBottom>
-             Wine Inventory Dashboard
-           </Typography>
+         return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        Wine Inventory Dashboard
+      </Typography>
 
-           <WeatherWidget />
+      <WeatherWidget />
 
-           {cellars.length === 0 ? (
-             <Typography>No cellars found. Create a cellar to start managing your wines.</Typography>
-           ) : (
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {!user ? (
+        <Box sx={{ textAlign: 'center', mt: 4 }}>
+          <Typography variant="h6" gutterBottom>
+            Please log in to view your wine inventory
+          </Typography>
+          <Button variant="contained" onClick={login} sx={{ mt: 2 }}>
+            Demo Login
+          </Button>
+        </Box>
+      ) : cellars.length === 0 ? (
+        <Typography>No cellars found. Create a cellar to start managing your wines.</Typography>
+      ) : (
              <TableContainer component={Paper}>
                <Table>
                  <TableHead>

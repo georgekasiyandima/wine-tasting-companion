@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { Theme, Notification, User, UserPreferences } from '@/types';
 import { STORAGE_KEYS } from '@/constants';
-import { AuthService } from '@/api/firebase';
+import { demoLogin, isAuthenticated, getToken, logout as authLogout } from '@/api/auth';
 
 // State interface
 interface AppState {
@@ -71,6 +71,8 @@ interface AppContextType {
   removeNotification: (id: string) => void;
   toggleTheme: () => void;
   updateUserPreferences: (preferences: Partial<UserPreferences>) => void;
+  login: () => Promise<void>;
+  logout: () => void;
 }
 
 // Create context
@@ -102,24 +104,37 @@ export function AppProvider({ children }: AppProviderProps) {
     localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(state.theme));
   }, [state.theme]);
 
-  // Listen for Firebase Auth state changes
+  // Check for existing authentication on app start
   useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged(async (firebaseUser) => {
-      if (firebaseUser) {
-        // Fetch user profile from database
-        const userProfile = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-          photoURL: firebaseUser.photoURL || undefined,
-          createdAt: Date.now(), // Optionally fetch from DB
-        };
-        dispatch({ type: 'SET_USER', payload: userProfile });
-      } else {
+    const checkAuth = async () => {
+      try {
+        if (isAuthenticated()) {
+          // User is already authenticated, we can fetch their profile
+          // For now, we'll use a demo user since we don't have profile endpoint yet
+          const demoUser: User = {
+            id: 'demo-user-123',
+            email: 'demo@winecompanion.com',
+            displayName: 'Demo User',
+            createdAt: Date.now()
+          };
+          dispatch({ type: 'SET_USER', payload: demoUser });
+        } else {
+          // Auto-login with demo user for development
+          try {
+            const { user } = await demoLogin();
+            dispatch({ type: 'SET_USER', payload: user });
+          } catch (error) {
+            console.error('Demo login failed:', error);
+            dispatch({ type: 'SET_USER', payload: null });
+          }
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
         dispatch({ type: 'SET_USER', payload: null });
       }
-    });
-    return () => unsubscribe();
+    };
+
+    checkAuth();
   }, []);
 
   // Helper functions
@@ -165,13 +180,41 @@ export function AppProvider({ children }: AppProviderProps) {
     localStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(updatedPreferences));
   };
 
+  const login = async () => {
+    try {
+      const { user } = await demoLogin();
+      dispatch({ type: 'SET_USER', payload: user });
+      addNotification({
+        type: 'success',
+        message: 'Successfully logged in!'
+      });
+    } catch (error) {
+      console.error('Login failed:', error);
+      addNotification({
+        type: 'error',
+        message: 'Login failed. Please try again.'
+      });
+    }
+  };
+
+  const logout = () => {
+    authLogout();
+    dispatch({ type: 'SET_USER', payload: null });
+    addNotification({
+      type: 'info',
+      message: 'Successfully logged out!'
+    });
+  };
+
   const value: AppContextType = {
     state,
     dispatch,
     addNotification,
     removeNotification,
     toggleTheme,
-    updateUserPreferences
+    updateUserPreferences,
+    login,
+    logout
   };
 
   return (
