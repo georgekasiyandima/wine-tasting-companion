@@ -232,6 +232,14 @@ export default function Profile() {
                 {state.user?.displayName || state.user?.email || 'Unknown User'}
               </Typography>
               
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                Full Stack Developer
+              </Typography>
+              
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Wine Enthusiast - WSET LEVEL 2
+              </Typography>
+              
               {state.user?.displayName && state.user?.email && (
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                   {state.user.email}

@@ -244,6 +244,7 @@ const LandingPage: React.FC = () => {
                     George Kasiyandima
                   </Typography>
                   <Chip label="Full Stack Developer" color="primary" sx={{ mt: 1 }} />
+                  <Chip label="Wine Enthusiast - WSET LEVEL 2" color="secondary" sx={{ mt: 1 }} />
                   <MuiLink 
                     href="https://www.linkedin.com/in/georgekasiyandima/" 
                     target="_blank" 

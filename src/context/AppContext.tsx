@@ -2,6 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, useCallback, R
 import { Theme, Notification, User, UserPreferences } from '@/types';
 import { STORAGE_KEYS } from '@/constants';
 import { demoLogin, isAuthenticated, getToken, logout as authLogout } from '@/api/auth';
+import { AuthService } from '@/api/firebase';
 
 // State interface
 interface AppState {

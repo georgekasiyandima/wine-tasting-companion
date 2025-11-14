@@ -133,12 +133,22 @@ export default function Analytics() {
 
     switch (range) {
       case 'month':
+        return wineList.filter((wine) => {
+          const wineDate = new Date(wine.timestamp);
+          if (isNaN(wineDate.getTime())) return false;
+          const monthStart = new Date(currentYear, currentMonth, 1);
+          const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+          return wineDate >= monthStart && wineDate <= monthEnd;
+        });
+      case 'quarter':
+        return wineList.filter((wine) => {
           const wineDate = new Date(wine.timestamp);
           if (isNaN(wineDate.getTime())) return false;
           const quarterStart = new Date(currentYear, Math.floor(currentMonth / 3) * 3, 1);
           return wineDate >= quarterStart;
         });
       case 'year':
+        return wineList.filter((wine) => {
           const wineDate = new Date(wine.timestamp);
           return !isNaN(wineDate.getTime()) && wineDate.getFullYear() === currentYear;
         });
@@ -148,36 +158,91 @@ export default function Analytics() {
   };
 
   const calculateAnalytics = (wineList: Wine[]): WineAnalytics => {
+    const totalWines = wineList.length;
+    
+    // Calculate average rating
+    const averageRating = totalWines > 0
+      ? wineList.reduce((sum, wine) => sum + wine.rating, 0) / totalWines
+      : 0;
 
+    // Initialize stats objects
+    const regionStats: { [key: string]: { count: number; totalRating: number } } = {};
+    const grapeStats: { [key: string]: { count: number; totalRating: number } } = {};
+    const monthlyStats: { [key: string]: { count: number; totalRating: number } } = {};
+    const ratingDistribution: { [key: string]: number } = {
+      '1': 0,
+      '2': 0,
+      '3': 0,
+      '4': 0,
+      '5': 0,
+    };
+
+    // Process each wine
+    wineList.forEach((wine) => {
+      // Region stats
+      if (wine.region) {
+        if (!regionStats[wine.region]) {
+          regionStats[wine.region] = { count: 0, totalRating: 0 };
+        }
+        regionStats[wine.region].count++;
+        regionStats[wine.region].totalRating += wine.rating;
+      }
+
+      // Grape stats
+      if (wine.grape) {
+        if (!grapeStats[wine.grape]) {
+          grapeStats[wine.grape] = { count: 0, totalRating: 0 };
+        }
+        grapeStats[wine.grape].count++;
+        grapeStats[wine.grape].totalRating += wine.rating;
+      }
+
+      // Rating distribution
+      const ratingKey = Math.round(wine.rating).toString() as keyof typeof ratingDistribution;
+      if (ratingDistribution[ratingKey] !== undefined) {
+        ratingDistribution[ratingKey]++;
+      }
+
+      // Monthly stats
+      if (wine.timestamp) {
+        const date = new Date(wine.timestamp);
+        if (!isNaN(date.getTime())) {
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          if (!monthlyStats[monthKey]) {
+            monthlyStats[monthKey] = { count: 0, totalRating: 0 };
+          }
+          monthlyStats[monthKey].count++;
+          monthlyStats[monthKey].totalRating += wine.rating;
+        }
+      }
+    });
+
+    // Calculate favorite regions
     const favoriteRegions = Object.entries(regionStats)
       .map(([region, stats]) => ({
         region,
         count: stats.count,
+        averageRating: stats.totalRating / stats.count,
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // Grape statistics
-
+    // Calculate favorite grapes
     const favoriteGrapes = Object.entries(grapeStats)
       .map(([grape, stats]) => ({
         grape,
         count: stats.count,
+        averageRating: stats.totalRating / stats.count,
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // Rating distribution
-        ratingDistribution[ratingKey]++;
-      }
-    });
-
-    // Monthly statistics
-
+    // Calculate monthly tastings
     const monthlyTastings = Object.entries(monthlyStats)
       .map(([month, stats]) => ({
         month,
         count: stats.count,
+        averageRating: stats.totalRating / stats.count,
       }))
       .sort((a, b) => a.month.localeCompare(b.month))
       .slice(-12);
