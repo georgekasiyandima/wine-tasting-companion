@@ -488,7 +488,7 @@ export default function DrinkWindowNotifications() {
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-            Configure drink window notification preferences for your cruise ship inventory.
+            Configure drink window notification preferences for your wine inventory.
           </Typography>
           
           <Grid container spacing={3}>

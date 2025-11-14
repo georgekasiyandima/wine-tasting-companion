@@ -24,6 +24,7 @@ import {
   Lock as LockIcon,
   Person as PersonIcon,
   Google as GoogleIcon,
+  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
@@ -72,6 +73,9 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [passwordResetEmail, setPasswordResetEmail] = useState('');
+  const [passwordResetSent, setPasswordResetSent] = useState(false);
 
   const signUpForm = useForm<SignUpForm>({
     defaultValues: {
@@ -96,6 +100,9 @@ export default function Auth() {
     setError(null);
     signUpForm.reset();
     signInForm.reset();
+    setShowPasswordReset(false);
+    setPasswordResetEmail('');
+    setPasswordResetSent(false);
   };
 
   const handleSignUp = async (data: SignUpForm) => {
@@ -159,6 +166,30 @@ export default function Auth() {
 
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
   const toggleConfirmPasswordVisibility = () => setShowConfirmPassword(!showConfirmPassword);
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordResetEmail) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      await AuthService.resetPassword(passwordResetEmail);
+      setPasswordResetSent(true);
+      addNotification({
+        type: 'success',
+        message: 'Password reset email sent! Please check your inbox.',
+      });
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      setError(error.message || 'Failed to send password reset email');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Box
@@ -255,93 +286,192 @@ export default function Auth() {
 
           {/* Sign In Tab */}
           <TabPanel value={tabValue} index={0}>
-            <form onSubmit={signInForm.handleSubmit(handleSignIn)}>
-              <Controller
-                name="email"
-                control={signInForm.control}
-                rules={{
-                  required: 'Email is required',
-                  pattern: {
-                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: 'Invalid email address',
-                  },
-                }}
-                render={({ field, fieldState }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Email"
-                    type="email"
-                    error={!!fieldState.error}
-                    helperText={fieldState.error?.message}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <EmailIcon color="action" />
-                        </InputAdornment>
-                      ),
+            {showPasswordReset ? (
+              passwordResetSent ? (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <EmailIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                    Check Your Email
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    We've sent a password reset link to <strong>{passwordResetEmail}</strong>
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Please check your inbox and click the link to reset your password.
+                  </Typography>
+                  <Button
+                    onClick={() => {
+                      setShowPasswordReset(false);
+                      setPasswordResetSent(false);
+                      setPasswordResetEmail('');
                     }}
-                    sx={{ mb: 3 }}
-                  />
-                )}
-              />
+                    variant="outlined"
+                    startIcon={<ArrowBackIcon />}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Back to Sign In
+                  </Button>
+                </Box>
+              ) : (
+                <>
+                  <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
+                    <IconButton
+                      onClick={() => {
+                        setShowPasswordReset(false);
+                        setPasswordResetEmail('');
+                        setError(null);
+                      }}
+                      sx={{ mr: 1 }}
+                    >
+                      <ArrowBackIcon />
+                    </IconButton>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      Reset Password
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Enter your email address and we'll send you a link to reset your password.
+                  </Typography>
+                  <form onSubmit={handlePasswordReset}>
+                    <TextField
+                      fullWidth
+                      label="Email"
+                      type="email"
+                      value={passwordResetEmail}
+                      onChange={(e) => setPasswordResetEmail(e.target.value)}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <EmailIcon color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{ mb: 3 }}
+                      required
+                      autoFocus
+                    />
+                    <Button
+                      type="submit"
+                      fullWidth
+                      variant="contained"
+                      size="large"
+                      disabled={loading || !passwordResetEmail}
+                      sx={{
+                        py: 1.5,
+                        fontSize: '1.1rem',
+                        fontWeight: 600,
+                        textTransform: 'none',
+                      }}
+                    >
+                      {loading ? <CircularProgress size={24} /> : 'Send Reset Link'}
+                    </Button>
+                  </form>
+                </>
+              )
+            ) : (
+              <form onSubmit={signInForm.handleSubmit(handleSignIn)}>
+                <Controller
+                  name="email"
+                  control={signInForm.control}
+                  rules={{
+                    required: 'Email is required',
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: 'Invalid email address',
+                    },
+                  }}
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      {...field}
+                      fullWidth
+                      label="Email"
+                      type="email"
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <EmailIcon color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{ mb: 3 }}
+                    />
+                  )}
+                />
 
-              <Controller
-                name="password"
-                control={signInForm.control}
-                rules={{
-                  required: 'Password is required',
-                  minLength: {
-                    value: 6,
-                    message: 'Password must be at least 6 characters',
-                  },
-                }}
-                render={({ field, fieldState }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Password"
-                    type={showPassword ? 'text' : 'password'}
-                    error={!!fieldState.error}
-                    helperText={fieldState.error?.message}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <LockIcon color="action" />
-                        </InputAdornment>
-                      ),
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            onClick={togglePasswordVisibility}
-                            edge="end"
-                          >
-                            {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
+                <Controller
+                  name="password"
+                  control={signInForm.control}
+                  rules={{
+                    required: 'Password is required',
+                    minLength: {
+                      value: 6,
+                      message: 'Password must be at least 6 characters',
+                    },
+                  }}
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      {...field}
+                      fullWidth
+                      label="Password"
+                      type={showPassword ? 'text' : 'password'}
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <LockIcon color="action" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              onClick={togglePasswordVisibility}
+                              edge="end"
+                            >
+                              {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{ mb: 1 }}
+                    />
+                  )}
+                />
+
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
+                  <Button
+                    onClick={() => {
+                      setError(null);
+                      setPasswordResetSent(false);
+                      setPasswordResetEmail(signInForm.getValues('email') || '');
+                      setShowPasswordReset(true);
                     }}
-                    sx={{ mb: 3 }}
-                  />
-                )}
-              />
+                    sx={{ textTransform: 'none', fontSize: '0.875rem' }}
+                    size="small"
+                  >
+                    Forgot Password?
+                  </Button>
+                </Box>
 
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                size="large"
-                disabled={loading || !signInForm.formState.isValid}
-                sx={{
-                  py: 1.5,
-                  fontSize: '1.1rem',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                }}
-              >
-                {loading ? <CircularProgress size={24} /> : 'Sign In'}
-              </Button>
-            </form>
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  size="large"
+                  disabled={loading || !signInForm.formState.isValid}
+                  sx={{
+                    py: 1.5,
+                    fontSize: '1.1rem',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                  }}
+                >
+                  {loading ? <CircularProgress size={24} /> : 'Sign In'}
+                </Button>
+              </form>
+            )}
           </TabPanel>
 
           {/* Sign Up Tab */}

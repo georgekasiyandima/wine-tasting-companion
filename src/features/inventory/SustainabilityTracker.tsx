@@ -22,11 +22,10 @@ import {
   Paper,
   Stack,
 } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import {
-  Eco as EcoIcon,
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
-  CheckCircle as CheckIcon,
   Warning as WarningIcon,
   Info as InfoIcon,
   Visibility as ViewIcon,
@@ -155,7 +154,7 @@ export default function SustainabilityTracker() {
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          🚢 Cruise Ship Sustainability Tracker
+          🌱 Sustainability Tracker
         </Typography>
         <Button
           variant="outlined"
@@ -183,7 +182,7 @@ export default function SustainabilityTracker() {
                     {metrics.sustainableWines} of {metrics.totalWines} wines
                   </Typography>
                 </Box>
-                <EcoIcon color="success" sx={{ fontSize: 40 }} />
+                <CheckCircleIcon color="success" sx={{ fontSize: 40 }} />
               </Box>
               <LinearProgress 
                 variant="determinate" 
@@ -327,7 +326,7 @@ export default function SustainabilityTracker() {
 
           <Alert severity="success" sx={{ mb: 2 }}>
             <Typography variant="body2">
-              Your cruise ship is leading the industry in sustainable wine procurement! 
+              Your wine collection is leading the way in sustainable procurement! 
               You've saved {Math.round(metrics.waterSaved / 1000)}k liters of water and 
               reduced carbon footprint by {getCarbonFootprintReduction().toFixed(1)}%.
             </Typography>
@@ -346,7 +345,7 @@ export default function SustainabilityTracker() {
             {metrics.certifications.map((cert, index) => (
               <Grid item xs={12} sm={6} md={4} key={index}>
                 <Paper sx={{ p: 2, textAlign: 'center' }}>
-                  <CheckIcon color="success" sx={{ fontSize: 32, mb: 1 }} />
+                  <CheckCircleIcon color="success" sx={{ fontSize: 32, mb: 1 }} />
                   <Typography variant="body1" fontWeight="bold">
                     {cert}
                   </Typography>
@@ -369,13 +368,13 @@ export default function SustainabilityTracker() {
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-            Comprehensive analysis of your cruise ship's sustainability impact and progress toward UN 2050 goals.
+            Comprehensive analysis of your wine collection's sustainability impact and progress toward UN 2050 goals.
           </Typography>
 
           <List>
             <ListItem>
               <ListItemIcon>
-                <EcoIcon color="success" />
+                <CheckCircleIcon color="success" />
               </ListItemIcon>
               <ListItemText
                 primary="Sustainable Wine Procurement"

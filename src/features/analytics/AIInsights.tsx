@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -12,7 +12,7 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemIcon
+  ListItemIcon,
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
@@ -20,14 +20,14 @@ import {
   Star as StarIcon,
   AttachMoney as MoneyIcon,
   Lightbulb as LightbulbIcon,
-  AutoAwesome as AIIcon
+  AutoAwesome as AIIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { Wine } from '@/types';
 
 interface AIInsightsProps {
   wines: Wine[];
-  analytics: any;
+  analytics: any; // Replace with WineAnalytics once confirmed
 }
 
 interface Insight {
@@ -45,11 +45,33 @@ const AIInsights: React.FC<AIInsightsProps> = ({ wines, analytics }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const userPreferences = useMemo(() => {
+    const validPrices = wines
+      .filter((w) => w.price !== undefined && !isNaN(w.price))
+      .map((w) => w.price as number);
+
+    return {
+      regions: [...new Set(wines.map((w) => w.region))].filter(Boolean),
+      grapes: [...new Set(wines.map((w) => w.grape))].filter(Boolean),
+      averageRating:
+        wines.length > 0
+          ? wines.reduce((sum, w) => sum + w.rating, 0) / wines.length
+          : 0,
+      priceRange: {
+        min: validPrices.length > 0 ? Math.min(...validPrices) : 0,
+        max: validPrices.length > 0 ? Math.max(...validPrices) : 0,
+      },
+      totalWines: wines.length,
+      favoriteRegions: analytics?.favoriteRegions || [],
+      favoriteGrapes: analytics?.favoriteGrapes || [],
+    };
+  }, [wines, analytics]);
+
   useEffect(() => {
     if (wines.length > 0 && analytics) {
       generateInsights();
     }
-  }, [wines, analytics]);
+  }, [userPreferences]);
 
   const generateInsights = async () => {
     if (wines.length === 0) return;
@@ -58,21 +80,6 @@ const AIInsights: React.FC<AIInsightsProps> = ({ wines, analytics }) => {
     setError(null);
 
     try {
-      const validPrices = wines.filter(w => w.price !== undefined).map(w => w.price!);
-      const userPreferences = {
-        regions: [...new Set(wines.map(w => w.region))],
-        grapes: [...new Set(wines.map(w => w.grape))],
-        averageRating: wines.reduce((sum, w) => sum + w.rating, 0) / wines.length,
-        priceRange: {
-          min: validPrices.length > 0 ? Math.min(...validPrices) : 0,
-          max: validPrices.length > 0 ? Math.max(...validPrices) : 0,
-        },
-        totalWines: wines.length,
-        favoriteRegions: analytics?.favoriteRegions || [],
-        favoriteGrapes: analytics?.favoriteGrapes || [],
-      };
-
-      // Generate insights using AI service
       const aiInsights = await generateAIInsights(userPreferences);
       setInsights(aiInsights);
     } catch (err) {
@@ -84,12 +91,8 @@ const AIInsights: React.FC<AIInsightsProps> = ({ wines, analytics }) => {
   };
 
   const generateAIInsights = async (preferences: any): Promise<Insight[]> => {
-    // This would use the AI service to generate real insights
-    // For now, we'll create intelligent mock insights based on the data
-    
     const mockInsights: Insight[] = [];
 
-    // Pattern insights
     if (preferences.averageRating > 4.0) {
       mockInsights.push({
         type: 'pattern',
@@ -112,9 +115,10 @@ const AIInsights: React.FC<AIInsightsProps> = ({ wines, analytics }) => {
       });
     }
 
-    // Price insights
-    const validPrices = wines.filter(w => w.price !== undefined).map(w => w.price!);
-    const avgPrice = validPrices.length > 0 ? validPrices.reduce((sum, price) => sum + price, 0) / validPrices.length : 0;
+    const avgPrice =
+      preferences.priceRange.max > 0
+        ? (preferences.priceRange.min + preferences.priceRange.max) / 2
+        : 0;
     if (avgPrice > 50) {
       mockInsights.push({
         type: 'trend',
@@ -126,7 +130,6 @@ const AIInsights: React.FC<AIInsightsProps> = ({ wines, analytics }) => {
       });
     }
 
-    // Collection insights
     if (preferences.totalWines > 20) {
       mockInsights.push({
         type: 'pattern',
@@ -138,7 +141,6 @@ const AIInsights: React.FC<AIInsightsProps> = ({ wines, analytics }) => {
       });
     }
 
-    // Grape variety insights
     if (preferences.grapes.length < 8) {
       mockInsights.push({
         type: 'recommendation',
@@ -150,9 +152,8 @@ const AIInsights: React.FC<AIInsightsProps> = ({ wines, analytics }) => {
       });
     }
 
-    // Seasonal insights
     const currentMonth = new Date().getMonth();
-    const seasonalWines = wines.filter(w => {
+    const seasonalWines = wines.filter((w) => {
       const wineDate = new Date(w.timestamp);
       return wineDate.getMonth() === currentMonth;
     });
@@ -173,11 +174,16 @@ const AIInsights: React.FC<AIInsightsProps> = ({ wines, analytics }) => {
 
   const getInsightColor = (type: string) => {
     switch (type) {
-      case 'pattern': return 'primary';
-      case 'recommendation': return 'secondary';
-      case 'discovery': return 'success';
-      case 'trend': return 'info';
-      default: return 'default';
+      case 'pattern':
+        return 'primary';
+      case 'recommendation':
+        return 'secondary';
+      case 'discovery':
+        return 'success';
+      case 'trend':
+        return 'info';
+      default:
+        return 'default';
     }
   };
 
@@ -287,7 +293,7 @@ const AIInsights: React.FC<AIInsightsProps> = ({ wines, analytics }) => {
                                       width: 6,
                                       height: 6,
                                       borderRadius: '50%',
-                                      bgcolor: i < Math.round(insight.confidence * 5) 
+                                      bgcolor: i < Math.round(insight.confidence * 5)
                                         ? insight.color
                                         : theme.palette.grey[300],
                                     }}
@@ -327,4 +333,4 @@ const AIInsights: React.FC<AIInsightsProps> = ({ wines, analytics }) => {
   );
 };
 
-export default AIInsights; 
+export default AIInsights;

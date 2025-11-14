@@ -19,7 +19,8 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import {
   getStorage,
@@ -565,6 +566,30 @@ export class AuthService {
         throw new Error('Firebase Authentication is not properly configured. Please check your Firebase project settings.');
       } else {
         throw new Error(`Failed to sign up: ${error.message}`);
+      }
+    }
+  }
+
+  static async resetPassword(email: string): Promise<void> {
+    if (isDemoMode) {
+      // Demo mode: simulate password reset email sent
+      console.log('Demo mode: Password reset email would be sent to', email);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error: any) {
+      console.error('Error sending password reset email:', error);
+      
+      // Provide specific error messages
+      if (error.code === 'auth/user-not-found') {
+        throw new Error('No account found with this email address.');
+      } else if (error.code === 'auth/invalid-email') {
+        throw new Error('Please enter a valid email address.');
+      } else {
+        throw new Error(`Failed to send password reset email: ${error.message}`);
       }
     }
   }

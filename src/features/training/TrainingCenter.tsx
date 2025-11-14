@@ -116,7 +116,7 @@ const mockTrainingModules: TrainingModule[] = [
   {
     id: 'wine-pairing-basics',
     title: 'Wine & Food Pairing Fundamentals',
-    description: 'Master the art of pairing wines with cruise ship cuisine',
+    description: 'Master the art of pairing wines with various cuisines',
     type: 'quiz',
     difficulty: 'beginner',
     duration: 20,
@@ -309,7 +309,7 @@ export default function TrainingCenter() {
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          Cruise Ship Wine Training Center
+          Wine Training Center
         </Typography>
         <Chip 
           label={`${progress.completedModules}/${progress.totalModules} Completed`}

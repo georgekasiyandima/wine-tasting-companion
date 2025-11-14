@@ -218,7 +218,6 @@ export interface WeatherWineRecommendation {
   tips: string;
   pairing: string;
   servingTemp: string;
-  cruiseShipTip: string;
 }
 
 // Wine Cellar Management Types

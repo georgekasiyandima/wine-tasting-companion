@@ -24,7 +24,6 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
@@ -32,6 +31,7 @@ import {
   Line,
   Area,
   AreaChart,
+  ResponsiveContainer,
 } from 'recharts';
 import {
   TrendingUp as TrendingUpIcon,
@@ -44,8 +44,7 @@ import {
 import { useApp } from '@/context/AppContext';
 import { Wine, WineAnalytics } from '@/types';
 import { WineService } from '@/api/firebase';
-import { RATING_LABELS } from '@/constants';
-import AIInsights from './AIInsights';
+import { RATING_LABELS } from '@/constants';// Update to '@/constants' if needed
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -69,8 +68,16 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const COLORS = [
-  '#8B0000', '#D4AF37', '#2E8B57', '#4682B4', '#9370DB',
-  '#FF6347', '#20B2AA', '#FFD700', '#FF69B4', '#32CD32'
+  '#8B0000',
+  '#D4AF37',
+  '#2E8B57',
+  '#4682B4',
+  '#9370DB',
+  '#FF6347',
+  '#20B2AA',
+  '#FFD700',
+  '#FF69B4',
+  '#32CD32',
 ];
 
 export default function Analytics() {
@@ -84,23 +91,35 @@ export default function Analytics() {
 
   useEffect(() => {
     loadAnalytics();
-  }, [timeRange]);
+  }, [timeRange, state.user?.id, addNotification]);
 
   const loadAnalytics = async () => {
     try {
       setLoading(true);
-      const wineList = await WineService.getWines(state.user?.id);
+      if (!state.user?.id) {
+        addNotification({
+          type: 'error',
+          message: 'No user ID found. Please log in.',
+        });
+        return;
+      }
+      const wineList = await WineService.getWines(state.user.id);
       setWines(wineList);
-      
+
       if (wineList.length > 0) {
         const filteredWines = filterWinesByTimeRange(wineList, timeRange);
         const analyticsData = calculateAnalytics(filteredWines);
         setAnalytics(analyticsData);
+      } else {
+        addNotification({
+          type: 'info',
+          message: 'No wines found. Add wines to see analytics.',
+        });
       }
     } catch (error) {
       addNotification({
         type: 'error',
-        message: 'Failed to load analytics data',
+        message: `Failed to load analytics data: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
     } finally {
       setLoading(false);
@@ -114,19 +133,18 @@ export default function Analytics() {
 
     switch (range) {
       case 'month':
-        return wineList.filter(wine => {
+        return wineList.filter((wine) => {
           const wineDate = new Date(wine.timestamp);
-          return wineDate.getMonth() === currentMonth && 
-                 wineDate.getFullYear() === currentYear;
+          return wineDate.getMonth() === currentMonth && wineDate.getFullYear() === currentYear;
         });
       case 'quarter':
-        return wineList.filter(wine => {
+        return wineList.filter((wine) => {
           const wineDate = new Date(wine.timestamp);
           const quarterStart = new Date(currentYear, Math.floor(currentMonth / 3) * 3, 1);
           return wineDate >= quarterStart;
         });
       case 'year':
-        return wineList.filter(wine => {
+        return wineList.filter((wine) => {
           const wineDate = new Date(wine.timestamp);
           return wineDate.getFullYear() === currentYear;
         });
@@ -137,75 +155,96 @@ export default function Analytics() {
 
   const calculateAnalytics = (wineList: Wine[]): WineAnalytics => {
     const totalWines = wineList.length;
-    const averageRating = totalWines > 0 
-      ? wineList.reduce((sum, wine) => sum + wine.rating, 0) / totalWines 
-      : 0;
+    const averageRating =
+      totalWines > 0 ? wineList.reduce((sum, wine) => sum + wine.rating, 0) / totalWines : 0;
 
     // Region statistics
-    const regionStats = wineList.reduce((acc, wine) => {
-      const region = wine.region || 'Unknown';
-      if (!acc[region]) {
-        acc[region] = { count: 0, totalRating: 0 };
-      }
-      acc[region].count++;
-      acc[region].totalRating += wine.rating;
-      return acc;
-    }, {} as Record<string, { count: number; totalRating: number }>);
+    const regionStats = wineList.reduce(
+      (acc, wine) => {
+        const region = wine.region || 'Unknown';
+        if (!acc[region]) {
+          acc[region] = { count: 0, totalRating: 0 };
+        }
+        acc[region].count++;
+        acc[region].totalRating += wine.rating;
+        return acc;
+      },
+      {} as Record<string, { count: number; totalRating: number }>
+    );
 
     const favoriteRegions = Object.entries(regionStats)
       .map(([region, stats]) => ({
         region,
         count: stats.count,
-        averageRating: stats.totalRating / stats.count
+        averageRating: stats.totalRating / stats.count,
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
     // Grape statistics
-    const grapeStats = wineList.reduce((acc, wine) => {
-      const grape = wine.grape || 'Unknown';
-      if (!acc[grape]) {
-        acc[grape] = { count: 0, totalRating: 0 };
-      }
-      acc[grape].count++;
-      acc[grape].totalRating += wine.rating;
-      return acc;
-    }, {} as Record<string, { count: number; totalRating: number }>);
+    const grapeStats = wineList.reduce(
+      (acc, wine) => {
+        const grape = wine.grape || 'Unknown';
+        if (!acc[grape]) {
+          acc[grape] = { count: 0, totalRating: 0 };
+        }
+        acc[grape].count++;
+        acc[grape].totalRating += wine.rating;
+        return acc;
+      },
+      {} as Record<string, { count: number; totalRating: number }>
+    );
 
     const favoriteGrapes = Object.entries(grapeStats)
       .map(([grape, stats]) => ({
         grape,
         count: stats.count,
-        averageRating: stats.totalRating / stats.count
+        averageRating: stats.totalRating / stats.count,
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
     // Rating distribution
-    const ratingDistribution = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
-    wineList.forEach(wine => {
-      const ratingKey = wine.rating.toString() as keyof typeof ratingDistribution;
-      ratingDistribution[ratingKey]++;
+    const ratingDistribution: Record<keyof typeof RATING_LABELS, number> = {
+      '1': 0,
+      '2': 0,
+      '3': 0,
+      '4': 0,
+      '5': 0,
+    };
+    wineList.forEach((wine) => {
+      const ratingNum = Number(wine.rating);
+      if (
+        !isNaN(ratingNum) &&
+        Number.isInteger(ratingNum) &&
+        ratingNum >= 1 &&
+        ratingNum <= 5
+      ) {
+        const ratingKey = ratingNum.toString() as keyof typeof RATING_LABELS;
+        ratingDistribution[ratingKey]++;
+      }
     });
 
     // Monthly statistics
-    const monthlyStats = wineList.reduce((acc, wine) => {
-      const date = new Date(wine.timestamp);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      
-      if (!acc[monthKey]) {
-        acc[monthKey] = { count: 0, totalRating: 0 };
-      }
-      acc[monthKey].count++;
-      acc[monthKey].totalRating += wine.rating;
-      return acc;
-    }, {} as Record<string, { count: number; totalRating: number }>);
+    const monthlyStats = wineList.reduce(
+      (acc, wine) => {
+        const date = new Date(wine.timestamp);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (!acc[monthKey]) {
+          acc[monthKey] = { count: 0, totalRating: 0 };
+        }
+        acc[monthKey].count++;
+        acc[monthKey].totalRating += wine.rating;
+        return acc;
+      },
+      {} as Record<string, { count: number; totalRating: number }>
+    );
 
     const monthlyTastings = Object.entries(monthlyStats)
       .map(([month, stats]) => ({
         month,
         count: stats.count,
-        averageRating: stats.totalRating / stats.count
+        averageRating: stats.totalRating / stats.count,
       }))
       .sort((a, b) => a.month.localeCompare(b.month))
       .slice(-12);
@@ -216,7 +255,7 @@ export default function Analytics() {
       favoriteRegions,
       favoriteGrapes,
       ratingDistribution,
-      monthlyTastings
+      monthlyTastings,
     };
   };
 
@@ -224,7 +263,14 @@ export default function Analytics() {
     setTabValue(newValue);
   };
 
-  const StatCard = ({ title, value, icon, color, subtitle, trend }: {
+  const StatCard = ({
+    title,
+    value,
+    icon,
+    color,
+    subtitle,
+    trend,
+  }: {
     title: string;
     value: string | number;
     icon: React.ReactNode;
@@ -235,9 +281,7 @@ export default function Analytics() {
     <Card sx={{ height: '100%' }}>
       <CardContent>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Avatar sx={{ bgcolor: color, mr: 2 }}>
-            {icon}
-          </Avatar>
+          <Avatar sx={{ bgcolor: color, mr: 2 }}>{icon}</Avatar>
           <Box>
             <Typography variant="h4" component="div" sx={{ fontWeight: 600 }}>
               {value}
@@ -254,14 +298,14 @@ export default function Analytics() {
         </Box>
         {trend && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <TrendingUpIcon 
-              sx={{ 
+            <TrendingUpIcon
+              sx={{
                 color: trend.positive ? 'success.main' : 'error.main',
-                transform: trend.positive ? 'none' : 'rotate(180deg)'
-              }} 
+                transform: trend.positive ? 'none' : 'rotate(180deg)',
+              }}
             />
-            <Typography 
-              variant="caption" 
+            <Typography
+              variant="caption"
               color={trend.positive ? 'success.main' : 'error.main'}
             >
               {trend.value}% from last period
@@ -272,243 +316,261 @@ export default function Analytics() {
     </Card>
   );
 
-  const renderOverview = () => (
-    <Grid container spacing={3}>
-      <Grid item xs={12} md={3}>
-        <StatCard
-          title="Total Wines"
-          value={analytics?.totalWines || 0}
-          icon={<WineIcon />}
-          color={theme.palette.primary.main}
-          subtitle="in collection"
-        />
-      </Grid>
-      <Grid item xs={12} md={3}>
-        <StatCard
-          title="Average Rating"
-          value={analytics?.averageRating ? analytics.averageRating.toFixed(1) : '0.0'}
-          icon={<StarIcon />}
-          color={theme.palette.secondary.main}
-          subtitle="out of 5 stars"
-        />
-      </Grid>
-      <Grid item xs={12} md={3}>
-        <StatCard
-          title="Top Region"
-          value={analytics?.favoriteRegions[0]?.region || 'None'}
-          icon={<LocationIcon />}
-          color={theme.palette.success.main}
-          subtitle="most tasted"
-        />
-      </Grid>
-      <Grid item xs={12} md={3}>
-        <StatCard
-          title="Top Grape"
-          value={analytics?.favoriteGrapes[0]?.grape || 'None'}
-          icon={<PaletteIcon />}
-          color={theme.palette.info.main}
-          subtitle="most tasted"
-        />
-      </Grid>
+  const renderOverview = () => {
+    if (!analytics) return null;
 
-      {/* Rating Distribution Chart */}
-      <Grid item xs={12} md={6}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              Rating Distribution
-            </Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={Object.entries(analytics?.ratingDistribution || {}).map(([rating, count]) => ({
-                rating: RATING_LABELS[rating as keyof typeof RATING_LABELS],
-                count
-              }))}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="rating" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill={theme.palette.primary.main} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </Grid>
+    const chartData = Object.entries(analytics.ratingDistribution || {}).map(([rating, count]) => ({
+      rating: RATING_LABELS[rating as keyof typeof RATING_LABELS] || rating,
+      count: Number(count),
+    }));
 
-      {/* Monthly Trends */}
-      <Grid item xs={12} md={6}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              Monthly Tastings
-            </Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={analytics?.monthlyTastings || []}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Area 
-                  type="monotone" 
-                  dataKey="count" 
-                  stroke={theme.palette.secondary.main} 
-                  fill={theme.palette.secondary.main + '20'} 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </Grid>
+    return (
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={3}>
+          <StatCard
+            title="Total Wines"
+            value={analytics.totalWines || 0}
+            icon={<WineIcon />}
+            color={theme.palette.primary.main}
+            subtitle="in collection"
+          />
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <StatCard
+            title="Average Rating"
+            value={analytics.averageRating ? analytics.averageRating.toFixed(1) : '0.0'}
+            icon={<StarIcon />}
+            color={theme.palette.secondary.main}
+            subtitle="out of 5 stars"
+          />
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <StatCard
+            title="Top Region"
+            value={analytics.favoriteRegions[0]?.region || 'None'}
+            icon={<LocationIcon />}
+            color={theme.palette.success.main}
+            subtitle="most tasted"
+          />
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <StatCard
+            title="Top Grape"
+            value={analytics.favoriteGrapes[0]?.grape || 'None'}
+            icon={<PaletteIcon />}
+            color={theme.palette.info.main}
+            subtitle="most tasted"
+          />
+        </Grid>
 
-      {/* AI Insights */}
-      <Grid item xs={12}>
-        <AIInsights wines={wines} analytics={analytics} />
-      </Grid>
-    </Grid>
-  );
+        {/* Rating Distribution Chart */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Rating Distribution
+              </Typography>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="rating" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count" fill={theme.palette.primary.main} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </Grid>
 
-  const renderRegions = () => (
-    <Grid container spacing={3}>
-      <Grid item xs={12} md={8}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              Top Wine Regions
-            </Typography>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={analytics?.favoriteRegions || []}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="region" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="count" fill={theme.palette.primary.main} name="Wines Tasted" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </Grid>
-      <Grid item xs={12} md={4}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              Region Distribution
-            </Typography>
-            <ResponsiveContainer width="100%" height={400}>
-              <PieChart>
-                <Pie
-                  data={analytics?.favoriteRegions.slice(0, 8) || []}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ region, percent }) => `${region} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                >
-                  {(analytics?.favoriteRegions.slice(0, 8) || []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </Grid>
-    </Grid>
-  );
+        {/* Monthly Trends */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Monthly Tastings
+              </Typography>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={analytics.monthlyTastings || []}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke={theme.palette.secondary.main}
+                    fill={`${theme.palette.secondary.main}20`}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </Grid>
 
-  const renderGrapes = () => (
-    <Grid container spacing={3}>
-      <Grid item xs={12} md={8}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              Top Grape Varieties
-            </Typography>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={analytics?.favoriteGrapes || []}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="grape" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="count" fill={theme.palette.secondary.main} name="Wines Tasted" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        {/* AI Insights */}
+        <Grid item xs={12}>
+          <AIInsights wines={wines} analytics={analytics} />
+        </Grid>
       </Grid>
-      <Grid item xs={12} md={4}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              Grape Variety Distribution
-            </Typography>
-            <ResponsiveContainer width="100%" height={400}>
-              <PieChart>
-                <Pie
-                  data={analytics?.favoriteGrapes.slice(0, 8) || []}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ grape, percent }) => `${grape} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                >
-                  {(analytics?.favoriteGrapes.slice(0, 8) || []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </Grid>
-    </Grid>
-  );
+    );
+  };
 
-  const renderTrends = () => (
-    <Grid container spacing={3}>
-      <Grid item xs={12}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              Tasting Trends Over Time
-            </Typography>
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={analytics?.monthlyTastings || []}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Legend />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="count"
-                  stroke={theme.palette.primary.main}
-                  name="Wines Tasted"
-                  strokeWidth={2}
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="averageRating"
-                  stroke={theme.palette.secondary.main}
-                  name="Average Rating"
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+  const renderRegions = () => {
+    if (!analytics) return null;
+
+    return (
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={8}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Top Wine Regions
+              </Typography>
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart data={analytics.favoriteRegions || []}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="region" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="count" fill={theme.palette.primary.main} name="Wines Tasted" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Region Distribution
+              </Typography>
+              <ResponsiveContainer width="100%" height={400}>
+                <PieChart>
+                  <Pie
+                    data={analytics.favoriteRegions.slice(0, 8) || []}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ region, percent }) => `${region} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="count"
+                  >
+                    {(analytics.favoriteRegions.slice(0, 8) || []).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
-    </Grid>
-  );
+    );
+  };
+
+  const renderGrapes = () => {
+    if (!analytics) return null;
+
+    return (
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={8}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Top Grape Varieties
+              </Typography>
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart data={analytics.favoriteGrapes || []}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="grape" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="count" fill={theme.palette.secondary.main} name="Wines Tasted" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Grape Variety Distribution
+              </Typography>
+              <ResponsiveContainer width="100%" height={400}>
+                <PieChart>
+                  <Pie
+                    data={analytics.favoriteGrapes.slice(0, 8) || []}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ grape, percent }) => `${grape} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="count"
+                  >
+                    {(analytics.favoriteGrapes.slice(0, 8) || []).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    );
+  };
+
+  const renderTrends = () => {
+    if (!analytics) return null;
+
+    return (
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Tasting Trends Over Time
+              </Typography>
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={analytics.monthlyTastings || []}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="right" orientation="right" />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="count"
+                    stroke={theme.palette.primary.main}
+                    name="Wines Tasted"
+                    strokeWidth={2}
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="averageRating"
+                    stroke={theme.palette.secondary.main}
+                    name="Average Rating"
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    );
+  };
 
   if (loading) {
     return (
@@ -577,4 +639,4 @@ export default function Analytics() {
       </TabPanel>
     </Box>
   );
-} 
+}

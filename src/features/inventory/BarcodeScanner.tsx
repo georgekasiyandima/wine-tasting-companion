@@ -11,8 +11,6 @@ import {
   DialogActions,
   Alert,
   CircularProgress,
-  IconButton,
-  Tooltip,
   Chip,
   Stack,
   TextField,
@@ -21,7 +19,6 @@ import {
   Select,
   MenuItem,
   Grid,
-  Paper,
   useTheme,
 } from '@mui/material';
 import {
@@ -30,29 +27,15 @@ import {
   Upload as UploadIcon,
   CheckCircle as CheckIcon,
   Error as ErrorIcon,
-  Refresh as RefreshIcon,
   WineBar as WineIcon,
-  Eco as EcoIcon,
-  TrendingUp as TrendingUpIcon,
-  Info as InfoIcon,
+  LocalFlorist as EcoIcon,
 } from '@mui/icons-material';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useApp } from '@/context/AppContext';
-
-interface WineLabelData {
-  name: string;
-  vintage: number;
-  region: string;
-  grape: string;
-  winery: string;
-  price?: number;
-  sustainability?: 'organic' | 'biodynamic' | 'conventional';
-  barcode: string;
-  confidence: number;
-}
+import { Wine } from '@/types';
 
 interface BarcodeScannerProps {
-  onWineDetected: (wineData: WineLabelData) => void;
+  onWineDetected: (wineData: Wine) => void;
   onClose: () => void;
 }
 
@@ -60,32 +43,47 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
   const theme = useTheme();
   const { addNotification } = useApp();
   const [scanning, setScanning] = useState(false);
-  const [detectedWine, setDetectedWine] = useState<WineLabelData | null>(null);
+  const [detectedWine, setDetectedWine] = useState<Wine | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [scanMode, setScanMode] = useState<'barcode' | 'label'>('barcode');
   const [manualEntry, setManualEntry] = useState(false);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear();
+        scannerRef.current.clear().catch((error) => {
+          console.error('Error clearing scanner:', error);
+        });
+        scannerRef.current = null;
+      }
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+        videoRef.current.srcObject = null;
       }
     };
   }, []);
 
-  const startBarcodeScanner = () => {
+  const startBarcodeScanner = async () => {
     setScanning(true);
     setProcessing(true);
 
     try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+
       scannerRef.current = new Html5QrcodeScanner(
-        "barcode-reader",
-        { 
-          fps: 10, 
+        'barcode-reader',
+        {
+          fps: 10,
           qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0
+          aspectRatio: 1.0,
         },
         false
       );
@@ -95,23 +93,35 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
           handleBarcodeDetected(decodedText);
         },
         (error) => {
-          // Ignore scanning errors
+          console.warn('Scan error:', error);
+          addNotification({
+            type: 'warning',
+            message: 'Unable to scan barcode. Please adjust the camera.',
+          });
         }
       );
     } catch (error) {
       console.error('Error starting scanner:', error);
       addNotification({
         type: 'error',
-        message: 'Failed to start barcode scanner',
+        message: 'Failed to start barcode scanner. Check camera permissions.',
       });
       setProcessing(false);
+      setScanning(false);
     }
   };
 
   const stopScanner = () => {
     if (scannerRef.current) {
-      scannerRef.current.clear();
+      scannerRef.current.clear().catch((error) => {
+        console.error('Error clearing scanner:', error);
+      });
       scannerRef.current = null;
+    }
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
     }
     setScanning(false);
     setProcessing(false);
@@ -119,9 +129,8 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
 
   const handleBarcodeDetected = async (barcode: string) => {
     setProcessing(true);
-    
+
     try {
-      // Simulate API call to wine database
       const wineData = await fetchWineDataFromBarcode(barcode);
       setDetectedWine(wineData);
       stopScanner();
@@ -129,29 +138,28 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
       console.error('Error fetching wine data:', error);
       addNotification({
         type: 'error',
-        message: 'Failed to fetch wine information from barcode',
+        message: `Failed to fetch wine information: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
     } finally {
       setProcessing(false);
     }
   };
 
-  const fetchWineDataFromBarcode = async (barcode: string): Promise<WineLabelData> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+  const fetchWineDataFromBarcode = async (barcode: string): Promise<Wine> => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    // Mock wine database lookup
-    const mockWineDatabase: Record<string, WineLabelData> = {
+    const mockWineDatabase: Record<string, Wine> = {
       '1234567890123': {
         name: 'Château Margaux 2015',
         vintage: 2015,
         region: 'Bordeaux, France',
         grape: 'Cabernet Sauvignon',
         winery: 'Château Margaux',
+        rating: 0,
         price: 850,
         sustainability: 'conventional',
         barcode: '1234567890123',
-        confidence: 0.95,
+        timestamp: new Date().toISOString(),
       },
       '9876543210987': {
         name: 'Barolo Riserva 2018',
@@ -159,10 +167,11 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
         region: 'Piedmont, Italy',
         grape: 'Nebbiolo',
         winery: 'Gaja',
+        rating: 0,
         price: 120,
         sustainability: 'organic',
         barcode: '9876543210987',
-        confidence: 0.92,
+        timestamp: new Date().toISOString(),
       },
       '4567891234567': {
         name: 'Prosecco Superiore DOCG',
@@ -170,16 +179,17 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
         region: 'Veneto, Italy',
         grape: 'Glera',
         winery: 'Valdobbiadene',
+        rating: 0,
         price: 25,
         sustainability: 'biodynamic',
         barcode: '4567891234567',
-        confidence: 0.88,
+        timestamp: new Date().toISOString(),
       },
     };
 
     const wineData = mockWineDatabase[barcode];
     if (!wineData) {
-      throw new Error('Wine not found in database');
+      throw new Error('Wine not found in database. Try manual entry.');
     }
 
     return wineData;
@@ -190,48 +200,52 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
     if (!file) return;
 
     setProcessing(true);
-    
+
     try {
-      // Simulate label recognition API
       const wineData = await processLabelImage(file);
       setDetectedWine(wineData);
     } catch (error) {
       console.error('Error processing label:', error);
       addNotification({
         type: 'error',
-        message: 'Failed to process wine label image',
+        message: `Failed to process wine label image: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
     } finally {
       setProcessing(false);
     }
   };
 
-  const processLabelImage = async (file: File): Promise<WineLabelData> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+  const processLabelImage = async (file: File): Promise<Wine> => {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // Mock label recognition results
-    const mockLabelData: WineLabelData = {
+    return {
       name: 'Chianti Classico Riserva 2019',
       vintage: 2019,
       region: 'Tuscany, Italy',
       grape: 'Sangiovese',
       winery: 'Castello di Ama',
+      rating: 0,
       price: 45,
       sustainability: 'organic',
       barcode: '7891234567890',
-      confidence: 0.87,
+      timestamp: new Date().toISOString(),
     };
-
-    return mockLabelData;
   };
 
   const handleConfirmWine = () => {
-    if (detectedWine) {
+    if (detectedWine && detectedWine.name && detectedWine.region && detectedWine.grape) {
       onWineDetected(detectedWine);
       addNotification({
         type: 'success',
         message: 'Wine added to inventory successfully!',
+      });
+      setDetectedWine(null);
+      setManualEntry(false);
+      onClose();
+    } else {
+      addNotification({
+        type: 'error',
+        message: 'Please fill in all required fields (Name, Region, Grape).',
       });
     }
   };
@@ -244,17 +258,22 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
       region: '',
       grape: '',
       winery: '',
+      rating: 0,
       barcode: '',
-      confidence: 0,
+      timestamp: new Date().toISOString(),
     });
+    stopScanner();
   };
 
   const getSustainabilityColor = (sustainability?: string) => {
     switch (sustainability) {
-      case 'organic': return 'success';
-      case 'biodynamic': return 'primary';
-      case 'conventional': return 'default';
-      default: return 'default';
+      case 'organic':
+        return 'success';
+      case 'biodynamic':
+        return 'primary';
+      case 'conventional':
+      default:
+        return 'default';
     }
   };
 
@@ -269,21 +288,9 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
     <Dialog open={true} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="h6">
-            Cruise Ship Wine Scanner
-          </Typography>
+          <Typography variant="h6">Wine Barcode Scanner</Typography>
           <Stack direction="row" spacing={1}>
-            <Chip
-              label={scanMode === 'barcode' ? 'Barcode' : 'Label'}
-              color="primary"
-              size="small"
-            />
-            <Chip
-              label="Cruise Inventory"
-              color="secondary"
-              size="small"
-              icon={<WineIcon />}
-            />
+            <Chip label="Wine Inventory" color="secondary" size="small" icon={<WineIcon />} />
           </Stack>
         </Box>
       </DialogTitle>
@@ -291,8 +298,8 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
       <DialogContent>
         {!detectedWine && !manualEntry && (
           <Box>
-            <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-              Scan wine barcodes or upload label images to automatically add wines to your cruise ship inventory.
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Scan wine barcodes or upload label images to automatically add wines to your inventory.
             </Typography>
 
             <Grid container spacing={3}>
@@ -304,11 +311,11 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
                       <Typography variant="h6" gutterBottom>
                         Barcode Scanner
                       </Typography>
-                      <Typography variant="body2" color="textSecondary">
+                      <Typography variant="body2" color="text.secondary">
                         Scan wine barcodes for instant recognition
                       </Typography>
                     </Box>
-                    
+
                     {!scanning ? (
                       <Button
                         variant="contained"
@@ -324,13 +331,10 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
                         <Alert severity="info" sx={{ mb: 2 }}>
                           Position the barcode within the scanning area
                         </Alert>
-                        <div id="barcode-reader"></div>
-                        <Button
-                          variant="outlined"
-                          fullWidth
-                          onClick={stopScanner}
-                          sx={{ mt: 2 }}
-                        >
+                        <div id="barcode-reader">
+                          <video ref={videoRef} style={{ width: '100%' }} />
+                        </div>
+                        <Button variant="outlined" fullWidth onClick={stopScanner} sx={{ mt: 2 }}>
                           Stop Scanner
                         </Button>
                       </Box>
@@ -347,11 +351,11 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
                       <Typography variant="h6" gutterBottom>
                         Label Recognition
                       </Typography>
-                      <Typography variant="body2" color="textSecondary">
+                      <Typography variant="body2" color="text.secondary">
                         Upload wine label images for AI recognition
                       </Typography>
                     </Box>
-                    
+
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -359,7 +363,7 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
                       style={{ display: 'none' }}
                       onChange={handleLabelImageUpload}
                     />
-                    
+
                     <Button
                       variant="contained"
                       fullWidth
@@ -376,29 +380,27 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
             </Grid>
 
             <Box sx={{ textAlign: 'center', mt: 3 }}>
-              <Typography variant="body2" color="textSecondary" gutterBottom>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
                 Or enter wine details manually
               </Typography>
-              <Button
-                variant="outlined"
-                onClick={handleManualEntry}
-                startIcon={<InfoIcon />}
-              >
+              <Button variant="outlined" onClick={handleManualEntry} startIcon={<WineIcon />}>
                 Manual Entry
               </Button>
             </Box>
           </Box>
         )}
 
-        {detectedWine && (
+        {(detectedWine || manualEntry) && (
           <Box>
-            <Alert severity="success" sx={{ mb: 3 }}>
+            <Alert severity={manualEntry ? 'info' : 'success'} sx={{ mb: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Wine Detected Successfully!
+                {manualEntry ? 'Manual Wine Entry' : 'Wine Detected Successfully!'}
               </Typography>
-              <Typography variant="body2">
-                Confidence: {(detectedWine.confidence * 100).toFixed(1)}%
-              </Typography>
+              {!manualEntry && (
+                <Typography variant="body2">
+                  Confidence: {(detectedWine?.confidence || 0) * 100}%)
+                </Typography>
+              )}
             </Alert>
 
             <Card>
@@ -406,125 +408,18 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
                 <Typography variant="h6" gutterBottom>
                   Wine Details
                 </Typography>
-                
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Wine Name"
-                      value={detectedWine.name}
-                      onChange={(e) => setDetectedWine({...detectedWine, name: e.target.value})}
-                      margin="normal"
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Vintage"
-                      type="number"
-                      value={detectedWine.vintage}
-                      onChange={(e) => setDetectedWine({...detectedWine, vintage: parseInt(e.target.value)})}
-                      margin="normal"
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Region"
-                      value={detectedWine.region}
-                      onChange={(e) => setDetectedWine({...detectedWine, region: e.target.value})}
-                      margin="normal"
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Grape Variety"
-                      value={detectedWine.grape}
-                      onChange={(e) => setDetectedWine({...detectedWine, grape: e.target.value})}
-                      margin="normal"
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Winery"
-                      value={detectedWine.winery}
-                      onChange={(e) => setDetectedWine({...detectedWine, winery: e.target.value})}
-                      margin="normal"
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Price ($)"
-                      type="number"
-                      value={detectedWine.price || ''}
-                      onChange={(e) => setDetectedWine({...detectedWine, price: parseFloat(e.target.value)})}
-                      margin="normal"
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <FormControl fullWidth margin="normal">
-                      <InputLabel>Sustainability</InputLabel>
-                      <Select
-                        value={detectedWine.sustainability || 'conventional'}
-                        onChange={(e) => setDetectedWine({...detectedWine, sustainability: e.target.value as any})}
-                        label="Sustainability"
-                      >
-                        <MenuItem value="conventional">Conventional</MenuItem>
-                        <MenuItem value="organic">Organic</MenuItem>
-                        <MenuItem value="biodynamic">Biodynamic</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                </Grid>
 
-                <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Chip
-                    label={`Barcode: ${detectedWine.barcode}`}
-                    variant="outlined"
-                    size="small"
-                  />
-                  {detectedWine.sustainability && (
-                    <Chip
-                      label={detectedWine.sustainability}
-                      color={getSustainabilityColor(detectedWine.sustainability) as any}
-                      icon={getSustainabilityIcon(detectedWine.sustainability)}
-                      size="small"
-                    />
-                  )}
-                  <Chip
-                    label={`Confidence: ${(detectedWine.confidence * 100).toFixed(0)}%`}
-                    color="info"
-                    size="small"
-                  />
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-        )}
-
-        {manualEntry && (
-          <Box>
-            <Alert severity="info" sx={{ mb: 3 }}>
-              Enter wine details manually for inventory tracking
-            </Alert>
-
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Manual Wine Entry
-                </Typography>
-                
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Wine Name"
                       value={detectedWine?.name || ''}
-                      onChange={(e) => setDetectedWine({...detectedWine!, name: e.target.value})}
+                      onChange={(e) =>
+                        setDetectedWine({ ...detectedWine!, name: e.target.value })
+                      }
                       margin="normal"
+                      required
                     />
                   </Grid>
                   <Grid item xs={12} md={6}>
@@ -533,7 +428,12 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
                       label="Vintage"
                       type="number"
                       value={detectedWine?.vintage || new Date().getFullYear()}
-                      onChange={(e) => setDetectedWine({...detectedWine!, vintage: parseInt(e.target.value)})}
+                      onChange={(e) =>
+                        setDetectedWine({
+                          ...detectedWine!,
+                          vintage: parseInt(e.target.value) || new Date().getFullYear(),
+                        })
+                      }
                       margin="normal"
                     />
                   </Grid>
@@ -542,8 +442,11 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
                       fullWidth
                       label="Region"
                       value={detectedWine?.region || ''}
-                      onChange={(e) => setDetectedWine({...detectedWine!, region: e.target.value})}
+                      onChange={(e) =>
+                        setDetectedWine({ ...detectedWine!, region: e.target.value })
+                      }
                       margin="normal"
+                      required
                     />
                   </Grid>
                   <Grid item xs={12} md={6}>
@@ -551,8 +454,11 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
                       fullWidth
                       label="Grape Variety"
                       value={detectedWine?.grape || ''}
-                      onChange={(e) => setDetectedWine({...detectedWine!, grape: e.target.value})}
+                      onChange={(e) =>
+                        setDetectedWine({ ...detectedWine!, grape: e.target.value })
+                      }
                       margin="normal"
+                      required
                     />
                   </Grid>
                   <Grid item xs={12} md={6}>
@@ -560,7 +466,24 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
                       fullWidth
                       label="Winery"
                       value={detectedWine?.winery || ''}
-                      onChange={(e) => setDetectedWine({...detectedWine!, winery: e.target.value})}
+                      onChange={(e) =>
+                        setDetectedWine({ ...detectedWine!, winery: e.target.value })
+                      }
+                      margin="normal"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Price ($)"
+                      type="number"
+                      value={detectedWine?.price || ''}
+                      onChange={(e) =>
+                        setDetectedWine({
+                          ...detectedWine!,
+                          price: parseFloat(e.target.value) || undefined,
+                        })
+                      }
                       margin="normal"
                     />
                   </Grid>
@@ -569,7 +492,9 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
                       fullWidth
                       label="Barcode (Optional)"
                       value={detectedWine?.barcode || ''}
-                      onChange={(e) => setDetectedWine({...detectedWine!, barcode: e.target.value})}
+                      onChange={(e) =>
+                        setDetectedWine({ ...detectedWine!, barcode: e.target.value })
+                      }
                       margin="normal"
                     />
                   </Grid>
@@ -578,7 +503,12 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
                       <InputLabel>Sustainability</InputLabel>
                       <Select
                         value={detectedWine?.sustainability || 'conventional'}
-                        onChange={(e) => setDetectedWine({...detectedWine!, sustainability: e.target.value as any})}
+                        onChange={(e) =>
+                          setDetectedWine({
+                            ...detectedWine!,
+                            sustainability: e.target.value as 'organic' | 'biodynamic' | 'conventional',
+                          })
+                        }
                         label="Sustainability"
                       >
                         <MenuItem value="conventional">Conventional</MenuItem>
@@ -588,6 +518,27 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
                     </FormControl>
                   </Grid>
                 </Grid>
+
+                {detectedWine?.barcode && (
+                  <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Chip label={`Barcode: ${detectedWine.barcode}`} variant="outlined" size="small" />
+                    {detectedWine.sustainability && (
+                      <Chip
+                        label={detectedWine.sustainability}
+                        color={getSustainabilityColor(detectedWine.sustainability)}
+                        icon={getSustainabilityIcon(detectedWine.sustainability)}
+                        size="small"
+                      />
+                    )}
+                    {!manualEntry && detectedWine.confidence && (
+                      <Chip
+                        label={`Confidence: ${(detectedWine.confidence * 100).toFixed(0)}%`}
+                        color="info"
+                        size="small"
+                      />
+                    )}
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </Box>
@@ -609,4 +560,4 @@ export default function BarcodeScanner({ onWineDetected, onClose }: BarcodeScann
       </DialogActions>
     </Dialog>
   );
-} 
+}

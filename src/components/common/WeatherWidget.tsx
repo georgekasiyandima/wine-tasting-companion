@@ -30,10 +30,10 @@ import {
   Settings as SettingsIcon,
   Notifications as AlertIcon,
   Schedule as ScheduleIcon,
-  LocalShipping as CruiseIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import { weatherService, WeatherData, WeatherWineRecommendation } from '@/api/weather';
+import { weatherService } from '@/api/weather';
+import { WeatherData, WeatherWineRecommendation } from '@/types';
 import { useApp } from '@/context/AppContext';
 import AnimatedCard from './AnimatedCard';
 
@@ -52,17 +52,17 @@ export default function WeatherWidget({ compact = false }: WeatherWidgetProps) {
   const [locationDialog, setLocationDialog] = useState(false);
   const [customLocation, setCustomLocation] = useState('');
   const [realTimeEnabled, setRealTimeEnabled] = useState(false);
-  const [cruiseAlerts, setCruiseAlerts] = useState<string[]>([]);
+  const [weatherAlerts, setWeatherAlerts] = useState<string[]>([]);
 
   useEffect(() => {
     loadWeather();
     
-    // Start real-time updates for cruise ship locations
+    // Start real-time updates for wine regions
     const unsubscribe = weatherService.subscribe((weather) => {
       setWeather(weather);
       const recs = weatherService.getWineRecommendations(weather);
       setRecommendations(recs);
-      setCruiseAlerts(weatherService.getCruiseShipAlerts(weather));
+      setWeatherAlerts(weatherService.getWeatherAlerts(weather));
     });
 
     // Start real-time updates every 5 minutes
@@ -239,14 +239,14 @@ export default function WeatherWidget({ compact = false }: WeatherWidgetProps) {
               </Box>
             </Box>
 
-            {/* Cruise Ship Alerts */}
-            {cruiseAlerts.length > 0 && (
+            {/* Weather Alerts */}
+            {weatherAlerts.length > 0 && (
               <Box sx={{ mb: 3 }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center' }}>
                   <AlertIcon sx={{ mr: 1, color: 'warning.main' }} />
-                  Cruise Ship Alerts
+                  Weather Alerts
                 </Typography>
-                {cruiseAlerts.map((alert, index) => (
+                {weatherAlerts.map((alert, index) => (
                   <Alert key={index} severity="warning" sx={{ mb: 1 }}>
                     <Typography variant="body2">
                       {alert}
@@ -288,19 +288,6 @@ export default function WeatherWidget({ compact = false }: WeatherWidgetProps) {
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   💡 {recommendations.tips}
                 </Typography>
-
-                {/* Cruise Ship Specific Tips */}
-                {recommendations.cruiseShipTip && (
-                  <Box sx={{ bgcolor: 'info.50', p: 2, borderRadius: 1, border: '1px solid', borderColor: 'info.200' }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center' }}>
-                      <CruiseIcon sx={{ mr: 1, color: 'info.main' }} />
-                      Cruise Ship Tip
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {recommendations.cruiseShipTip}
-                    </Typography>
-                  </Box>
-                )}
               </Box>
             )}
 
@@ -352,10 +339,10 @@ export default function WeatherWidget({ compact = false }: WeatherWidgetProps) {
           </Typography>
           
           <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-            🚢 Popular Cruise Destinations:
+            🍷 Popular Wine Regions:
           </Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
-            {weatherService.getCruiseDestinations().slice(0, 8).map((destination) => (
+            {weatherService.getWineRegions().slice(0, 8).map((destination) => (
               <Chip
                 key={destination}
                 label={destination}

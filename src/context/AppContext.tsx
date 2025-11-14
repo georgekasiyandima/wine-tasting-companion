@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, ReactNode } from 'react';
 import { Theme, Notification, User, UserPreferences } from '@/types';
 import { STORAGE_KEYS } from '@/constants';
 import { AuthService } from '@/api/firebase';
@@ -27,12 +27,12 @@ const initialState: AppState = {
   theme: {
     mode: 'light',
     primaryColor: '#8B0000',
-    secondaryColor: '#D4AF37'
+    secondaryColor: '#D4AF37',
   },
   user: null,
   notifications: [],
   isLoading: false,
-  userPreferences: null
+  userPreferences: null,
 };
 
 // Reducer function
@@ -45,12 +45,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'ADD_NOTIFICATION':
       return {
         ...state,
-        notifications: [...state.notifications, action.payload]
+        notifications: [...state.notifications, action.payload],
       };
     case 'REMOVE_NOTIFICATION':
       return {
         ...state,
-        notifications: state.notifications.filter(n => n.id !== action.payload)
+        notifications: state.notifications.filter((n) => n.id !== action.payload),
       };
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
@@ -89,81 +89,115 @@ export function AppProvider({ children }: AppProviderProps) {
     const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME);
     if (savedTheme) {
       try {
-        const theme = JSON.parse(savedTheme);
-        dispatch({ type: 'SET_THEME', payload: theme });
+        const theme = JSON.parse(savedTheme) as Theme;
+        if (theme.mode && theme.primaryColor && theme.secondaryColor) {
+          dispatch({ type: 'SET_THEME', payload: theme });
+        }
       } catch (error) {
         console.error('Error loading theme from localStorage:', error);
+        addNotification({
+          type: 'error',
+          message: 'Failed to load theme preferences',
+        });
       }
     }
-  }, []);
+  }, []); // Note: addNotification removed from deps as it's memoized below
 
   // Save theme to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(state.theme));
+    try {
+      localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(state.theme));
+    } catch (error) {
+      console.error('Error saving theme to localStorage:', error);
+      addNotification({
+        type: 'error',
+        message: 'Failed to save theme preferences',
+      });
+    }
   }, [state.theme]);
 
-  // Listen for Firebase Auth state changes
-  useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged(async (firebaseUser) => {
-      if (firebaseUser) {
-        // Fetch user profile from database
-        const userProfile = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-          photoURL: firebaseUser.photoURL || undefined,
-          createdAt: Date.now(), // Optionally fetch from DB
-        };
-        dispatch({ type: 'SET_USER', payload: userProfile });
-      } else {
-        dispatch({ type: 'SET_USER', payload: null });
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Helper functions
-  const addNotification = (notification: Omit<Notification, 'id'>) => {
+  // Memoize addNotification to ensure stable reference
+  const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
     const id = Date.now().toString();
     const newNotification: Notification = {
       ...notification,
       id,
-      duration: notification.duration || 5000
+      duration: notification.duration || 5000,
     };
-    
+
     dispatch({ type: 'ADD_NOTIFICATION', payload: newNotification });
 
-    // Auto-remove notification after duration
     if (newNotification.duration !== 0) {
       setTimeout(() => {
         dispatch({ type: 'REMOVE_NOTIFICATION', payload: id });
       }, newNotification.duration);
     }
-  };
+  }, [dispatch]);
 
-  const removeNotification = (id: string) => {
+  // Listen for Firebase Auth state changes
+  useEffect(() => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    const unsubscribe = AuthService.onAuthStateChanged(async (firebaseUser) => {
+      try {
+        if (firebaseUser) {
+          const userProfile = {
+            id: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+            photoURL: firebaseUser.photoURL || undefined,
+            createdAt: Date.now(),
+          };
+          dispatch({ type: 'SET_USER', payload: userProfile });
+        } else {
+          dispatch({ type: 'SET_USER', payload: null });
+        }
+      } catch (error) {
+        console.error('Error in auth state change:', error);
+        addNotification({
+          type: 'error',
+          message: `Failed to load user profile: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        });
+      } finally {
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+    });
+    return () => {
+      unsubscribe();
+      dispatch({ type: 'SET_LOADING', payload: false });
+    };
+  }, [addNotification, dispatch]);
+
+  // Helper functions
+  const removeNotification = useCallback((id: string) => {
     dispatch({ type: 'REMOVE_NOTIFICATION', payload: id });
-  };
+  }, [dispatch]);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     const newTheme: Theme = {
       ...state.theme,
-      mode: state.theme.mode === 'light' ? 'dark' : 'light'
+      mode: state.theme.mode === 'light' ? 'dark' : 'light',
     };
     dispatch({ type: 'SET_THEME', payload: newTheme });
-  };
+  }, [state.theme]);
 
-  const updateUserPreferences = (preferences: Partial<UserPreferences>) => {
+  const updateUserPreferences = useCallback((preferences: Partial<UserPreferences>) => {
     const updatedPreferences = {
       ...state.userPreferences,
-      ...preferences
+      ...preferences,
     } as UserPreferences;
-    
+
     dispatch({ type: 'SET_USER_PREFERENCES', payload: updatedPreferences });
-    
-    // Save to localStorage
-    localStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(updatedPreferences));
-  };
+
+    try {
+      localStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(updatedPreferences));
+    } catch (error) {
+      console.error('Error saving user preferences:', error);
+      addNotification({
+        type: 'error',
+        message: 'Failed to save user preferences',
+      });
+    }
+  }, [state.userPreferences, addNotification]);
 
   const value: AppContextType = {
     state,
@@ -171,14 +205,10 @@ export function AppProvider({ children }: AppProviderProps) {
     addNotification,
     removeNotification,
     toggleTheme,
-    updateUserPreferences
+    updateUserPreferences,
   };
 
-  return (
-    <AppContext.Provider value={value}>
-      {children}
-    </AppContext.Provider>
-  );
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
 // Custom hook to use the context
@@ -188,4 +218,4 @@ export function useApp() {
     throw new Error('useApp must be used within an AppProvider');
   }
   return context;
-} 
+}

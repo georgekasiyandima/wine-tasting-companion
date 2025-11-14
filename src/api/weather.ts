@@ -8,23 +8,23 @@ import { WEATHER_CONFIG } from '@/constants';
 let weatherCache: Map<string, { data: WeatherData; timestamp: number }> = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-// Cruise ship locations for automatic weather tracking
-const CRUISE_LOCATIONS = [
+// Popular wine regions for weather tracking
+const WINE_REGIONS = [
   'Cape Town, South Africa',
   'Stellenbosch, South Africa',
   'Franschhoek, South Africa',
-  'Barcelona, Spain',
-  'Marseille, France',
-  'Genoa, Italy',
-  'Venice, Italy',
-  'Athens, Greece',
-  'Dubrovnik, Croatia',
-  'Santorini, Greece',
-  'Miami, USA',
-  'San Juan, Puerto Rico',
-  'St. Maarten',
-  'Barbados',
-  'Jamaica',
+  'Bordeaux, France',
+  'Burgundy, France',
+  'Tuscany, Italy',
+  'Piedmont, Italy',
+  'Napa Valley, USA',
+  'Sonoma, USA',
+  'Barossa Valley, Australia',
+  'Mendoza, Argentina',
+  'La Rioja, Spain',
+  'Douro Valley, Portugal',
+  'Marlborough, New Zealand',
+  'Mosel, Germany',
 ];
 
 export class WeatherService {
@@ -171,10 +171,9 @@ export class WeatherService {
           'Gewürztraminer',
           'Sparkling Wine'
         ],
-        tips: 'Serve well chilled, avoid high alcohol wines. Perfect for poolside service on cruise ships.',
+        tips: 'Serve well chilled, avoid high alcohol wines. Perfect for outdoor gatherings and summer events.',
         pairing: 'Light seafood, salads, fresh fruits',
-        servingTemp: '6-8°C',
-        cruiseShipTip: 'Ideal for outdoor dining and deck parties'
+        servingTemp: '6-8°C'
       };
     } else if (temp >= 20) {
       // Warm weather
@@ -192,8 +191,7 @@ export class WeatherService {
         ],
         tips: 'Room temperature for reds, slightly chilled for whites. Perfect for dinner service.',
         pairing: 'Grilled meats, pasta, Mediterranean cuisine',
-        servingTemp: '12-16°C',
-        cruiseShipTip: 'Excellent for formal dining and wine tastings'
+        servingTemp: '12-16°C'
       };
     } else if (temp >= 10) {
       // Cool weather
@@ -211,8 +209,7 @@ export class WeatherService {
         ],
         tips: 'Serve at room temperature, consider decanting. Perfect for evening events.',
         pairing: 'Rich meats, stews, aged cheeses',
-        servingTemp: '16-18°C',
-        cruiseShipTip: 'Great for special events and captain\'s dinners'
+        servingTemp: '16-18°C'
       };
     } else {
       // Cold weather
@@ -230,25 +227,22 @@ export class WeatherService {
         ],
         tips: 'Serve at room temperature, consider warming slightly. Premium wine service.',
         pairing: 'Heavy dishes, chocolate desserts, aged cheeses',
-        servingTemp: '18-20°C',
-        cruiseShipTip: 'Premium wine service for luxury experiences'
+        servingTemp: '18-20°C'
       };
     }
 
     // Adjust based on weather condition
     if (condition.includes('rain') || condition.includes('storm')) {
       recommendations.tips += ' Consider indoor wine tastings and cozy atmosphere.';
-      recommendations.cruiseShipTip = 'Perfect for indoor wine events and tastings';
     } else if (condition.includes('sunny') || condition.includes('clear')) {
       recommendations.tips += ' Outdoor wine service recommended.';
-      recommendations.cruiseShipTip = 'Ideal for deck wine service and outdoor events';
     }
 
     return recommendations;
   }
 
-  // Get cruise ship weather alerts
-  getCruiseShipAlerts(weather: WeatherData): string[] {
+  // Get weather alerts for wine service
+  getWeatherAlerts(weather: WeatherData): string[] {
     const alerts: string[] = [];
     const temp = weather.temperature;
     const windSpeed = weather.windSpeed;
@@ -269,12 +263,12 @@ export class WeatherService {
     return alerts;
   }
 
-  // Get popular cruise destinations
-  getCruiseDestinations(): string[] {
-    return CRUISE_LOCATIONS;
+  // Get popular wine regions
+  getWineRegions(): string[] {
+    return WINE_REGIONS;
   }
 
-  // Get weather forecast for cruise planning
+  // Get weather forecast for wine event planning
   async getWeatherForecast(location: string, days: number = 5): Promise<WeatherData[]> {
     try {
       const response = await fetch(

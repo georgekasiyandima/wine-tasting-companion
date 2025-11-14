@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
@@ -16,6 +17,7 @@ import {
   QrCodeScanner as ScannerIcon,
 } from '@mui/icons-material';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { useApp } from '@/context/AppContext';
 
 interface BarcodeScannerProps {
   open: boolean;
@@ -24,10 +26,12 @@ interface BarcodeScannerProps {
 }
 
 export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScannerProps) {
+  const { addNotification } = useApp();
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (open && !scannerRef.current) {
@@ -39,15 +43,24 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
         scannerRef.current.clear();
         scannerRef.current = null;
       }
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
     };
   }, [open]);
 
-  const initializeScanner = () => {
+  const initializeScanner = async () => {
     if (!containerRef.current) return;
 
     try {
       setScanning(true);
       setError(null);
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
 
       scannerRef.current = new Html5QrcodeScanner(
         'barcode-scanner',
@@ -61,19 +74,25 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
 
       scannerRef.current.render(
         (decodedText) => {
-          // Success callback
           setScanning(false);
           onScan(decodedText);
           onClose();
         },
         (errorMessage) => {
-          // Error callback - we'll handle this silently for now
           console.log('Scan error:', errorMessage);
+          addNotification({
+            type: 'warning',
+            message: 'Unable to scan barcode. Please adjust the camera.',
+          });
         }
       );
     } catch (err) {
       setError('Failed to initialize camera. Please check camera permissions.');
       setScanning(false);
+      addNotification({
+        type: 'error',
+        message: 'Failed to initialize camera. Please check permissions.',
+      });
     }
   };
 
@@ -81,6 +100,10 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
     if (scannerRef.current) {
       scannerRef.current.clear();
       scannerRef.current = null;
+    }
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
     }
     setScanning(false);
     setError(null);
@@ -150,7 +173,9 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
               </Typography>
             </Box>
           ) : (
-            <div id="barcode-scanner" style={{ width: '100%' }} />
+            <div id="barcode-scanner">
+              <video ref={videoRef} style={{ width: '100%' }} />
+            </div>
           )}
         </Box>
 
@@ -168,4 +193,4 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
       </DialogActions>
     </Dialog>
   );
-} 
+}

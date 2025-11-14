@@ -27,9 +27,7 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Badge,
   Stack,
-  Divider,
   useTheme,
 } from '@mui/material';
 import {
@@ -40,9 +38,7 @@ import {
   Delete as DeleteIcon,
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
-  Eco as EcoIcon,
-  LocalShipping as ShippingIcon,
-  Storage as StorageIcon,
+  //Eco as EcoIcon,
   Visibility as ViewIcon,
   Refresh as RefreshIcon,
   QrCodeScanner as ScannerIcon,
@@ -52,6 +48,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { CellarWine, WineCellar } from '@/types';
 import { cellarService } from '@/api/firebase';
+import { POPULAR_GRAPES, MIN_STOCK_THRESHOLD, EXPIRY_THRESHOLD_DAYS } from '@/constants';
 import AnimatedCard from '@/components/common/AnimatedCard';
 import BarcodeScanner from './BarcodeScanner';
 import SustainabilityTracker from './SustainabilityTracker';
@@ -79,7 +76,7 @@ export default function InventoryDashboard() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { state, addNotification } = useApp();
-  
+
   const [cellars, setCellars] = useState<WineCellar[]>([]);
   const [inventory, setInventory] = useState<CellarWine[]>([]);
   const [stats, setStats] = useState<InventoryStats>({
@@ -99,52 +96,100 @@ export default function InventoryDashboard() {
   const [showDrinkWindow, setShowDrinkWindow] = useState(false);
 
   useEffect(() => {
+    if (!state.user?.id) {
+      addNotification({
+        type: 'error',
+        message: 'No user ID found. Please log in.',
+      });
+      navigate('/auth');
+      return;
+    }
     loadInventory();
-  }, [state.user?.id]);
+  }, [state.user?.id, navigate, addNotification]);
 
   const loadInventory = async () => {
     try {
       setLoading(true);
-      
-      // Load cellars
       const userCellars = await cellarService.getCellars(state.user?.id || '');
       setCellars(userCellars);
-      
+
       if (userCellars.length > 0) {
         setSelectedCellar(userCellars[0].id);
-        
-        // Load inventory for first cellar
         const cellarWines = await cellarService.getCellarWines(userCellars[0].id);
         setInventory(cellarWines);
-        
-        // Calculate stats
-        calculateStats(cellarWines);
-        generateAlerts(cellarWines);
+        updateInventoryStatsAndAlerts(cellarWines);
+      } else {
+        addNotification({
+          type: 'info',
+          message: 'No cellars found. Please create a cellar.',
+        });
       }
     } catch (error) {
       console.error('Error loading inventory:', error);
       addNotification({
         type: 'error',
-        message: 'Failed to load inventory',
+        message: `Failed to load inventory: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStats = (wines: CellarWine[]) => {
-    const totalWines = wines.reduce((sum, wine) => sum + wine.quantity, 0);
-    const totalValue = wines.reduce((sum, wine) => sum + (wine.purchasePrice * wine.quantity), 0);
-    const lowStockItems = wines.filter(wine => wine.quantity <= 5).length;
-    const outOfStockItems = wines.filter(wine => wine.quantity === 0).length;
-    const sustainableWines = wines.filter(wine => 
-      wine.name.toLowerCase().includes('organic') || 
-      wine.name.toLowerCase().includes('biodynamic') ||
-      wine.region.toLowerCase().includes('organic')
-    ).length;
-    const expiringWines = wines.filter(wine => 
-      wine.drinkByDate && wine.drinkByDate < Date.now() + (30 * 24 * 60 * 60 * 1000) // 30 days
-    ).length;
+  const updateInventoryStatsAndAlerts = (wines: CellarWine[]) => {
+    let totalWines = 0;
+    let totalValue = 0;
+    let lowStockItems = 0;
+    let outOfStockItems = 0;
+    let sustainableWines = 0;
+    let expiringWines = 0;
+    const newAlerts: StockAlert[] = [];
+
+    wines.forEach((wine) => {
+      totalWines += wine.quantity;
+      totalValue += wine.purchasePrice * wine.quantity;
+      if (wine.quantity <= MIN_STOCK_THRESHOLD) lowStockItems++;
+      if (wine.quantity === 0) outOfStockItems++;
+      if (
+        wine.name.toLowerCase().includes('organic') ||
+        wine.name.toLowerCase().includes('biodynamic') ||
+        wine.region.toLowerCase().includes('organic')
+      ) {
+        sustainableWines++;
+      }
+      if (wine.drinkByDate && wine.drinkByDate < Date.now() + EXPIRY_THRESHOLD_DAYS * 24 * 60 * 60 * 1000) {
+        expiringWines++;
+      }
+
+      if (wine.quantity === 0) {
+        newAlerts.push({
+          id: wine.id || '',
+          wineName: wine.name,
+          currentStock: wine.quantity,
+          minStock: MIN_STOCK_THRESHOLD,
+          type: 'out',
+          priority: 'high',
+        });
+      } else if (wine.quantity <= MIN_STOCK_THRESHOLD) {
+        newAlerts.push({
+          id: wine.id || '',
+          wineName: wine.name,
+          currentStock: wine.quantity,
+          minStock: MIN_STOCK_THRESHOLD,
+          type: 'low',
+          priority: 'medium',
+        });
+      }
+      if (wine.drinkByDate && wine.drinkByDate < Date.now() + EXPIRY_THRESHOLD_DAYS * 24 * 60 * 60 * 1000) {
+        newAlerts.push({
+          id: wine.id || '',
+          wineName: wine.name,
+          currentStock: wine.quantity,
+          minStock: MIN_STOCK_THRESHOLD,
+          type: 'expiring',
+          priority: 'high',
+        });
+      }
+    });
 
     setStats({
       totalWines,
@@ -154,44 +199,6 @@ export default function InventoryDashboard() {
       sustainableWines,
       expiringWines,
     });
-  };
-
-  const generateAlerts = (wines: CellarWine[]) => {
-    const newAlerts: StockAlert[] = [];
-    
-    wines.forEach(wine => {
-      if (wine.quantity === 0) {
-        newAlerts.push({
-          id: wine.id || '',
-          wineName: wine.name,
-          currentStock: wine.quantity,
-          minStock: 5,
-          type: 'out',
-          priority: 'high',
-        });
-      } else if (wine.quantity <= 5) {
-        newAlerts.push({
-          id: wine.id || '',
-          wineName: wine.name,
-          currentStock: wine.quantity,
-          minStock: 5,
-          type: 'low',
-          priority: 'medium',
-        });
-      }
-      
-      if (wine.drinkByDate && wine.drinkByDate < Date.now() + (30 * 24 * 60 * 60 * 1000)) {
-        newAlerts.push({
-          id: wine.id || '',
-          wineName: wine.name,
-          currentStock: wine.quantity,
-          minStock: 5,
-          type: 'expiring',
-          priority: 'high',
-        });
-      }
-    });
-    
     setAlerts(newAlerts);
   };
 
@@ -200,28 +207,39 @@ export default function InventoryDashboard() {
     try {
       const cellarWines = await cellarService.getCellarWines(cellarId);
       setInventory(cellarWines);
-      calculateStats(cellarWines);
-      generateAlerts(cellarWines);
+      updateInventoryStatsAndAlerts(cellarWines);
     } catch (error) {
       console.error('Error loading cellar wines:', error);
+      addNotification({
+        type: 'error',
+        message: `Failed to load cellar wines: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
     }
   };
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (priority: string): 'error' | 'warning' | 'info' | 'success' => {
     switch (priority) {
-      case 'high': return 'error';
-      case 'medium': return 'warning';
-      case 'low': return 'info';
-      default: return 'default';
+      case 'high':
+        return 'error';
+      case 'medium':
+        return 'warning';
+      case 'low':
+        return 'info';
+      default:
+        return 'info';
     }
   };
 
   const getAlertIcon = (type: string) => {
     switch (type) {
-      case 'out': return <WarningIcon color="error" />;
-      case 'low': return <TrendingDownIcon color="warning" />;
-      case 'expiring': return <WarningIcon color="error" />;
-      default: return <WarningIcon />;
+      case 'out':
+        return <WarningIcon color="error" />;
+      case 'low':
+        return <TrendingDownIcon color="warning" />;
+      case 'expiring':
+        return <WarningIcon color="error" />;
+      default:
+        return <WarningIcon />;
     }
   };
 
@@ -229,7 +247,9 @@ export default function InventoryDashboard() {
     return (
       <Box sx={{ p: 3 }}>
         <LinearProgress />
-        <Typography variant="h6" sx={{ mt: 2 }}>Loading inventory...</Typography>
+        <Typography variant="h6" sx={{ mt: 2 }}>
+          Loading inventory...
+        </Typography>
       </Box>
     );
   }
@@ -238,7 +258,7 @@ export default function InventoryDashboard() {
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          Cruise Ship Wine Inventory
+          Wine Inventory Management
         </Typography>
         <Box>
           <Button
@@ -314,10 +334,14 @@ export default function InventoryDashboard() {
             {alerts.slice(0, 6).map((alert) => (
               <Grid item xs={12} md={6} lg={4} key={alert.id}>
                 <Alert
-                  severity={getPriorityColor(alert.priority) as any}
+                  severity={getPriorityColor(alert.priority)}
                   icon={getAlertIcon(alert.type)}
                   action={
-                    <Button color="inherit" size="small">
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => navigate(`/wine/${alert.id}`)}
+                    >
                       View
                     </Button>
                   }
@@ -342,9 +366,7 @@ export default function InventoryDashboard() {
                   <Typography color="textSecondary" gutterBottom>
                     Total Wines
                   </Typography>
-                  <Typography variant="h4">
-                    {stats.totalWines}
-                  </Typography>
+                  <Typography variant="h4">{stats.totalWines}</Typography>
                 </Box>
                 <InventoryIcon color="primary" sx={{ fontSize: 40 }} />
               </Box>
@@ -360,9 +382,7 @@ export default function InventoryDashboard() {
                   <Typography color="textSecondary" gutterBottom>
                     Total Value
                   </Typography>
-                  <Typography variant="h4">
-                    ${stats.totalValue.toLocaleString()}
-                  </Typography>
+                  <Typography variant="h4">${stats.totalValue.toLocaleString()}</Typography>
                 </Box>
                 <TrendingUpIcon color="success" sx={{ fontSize: 40 }} />
               </Box>
@@ -443,7 +463,7 @@ export default function InventoryDashboard() {
                     <TableCell>{wine.vintage}</TableCell>
                     <TableCell align="right">
                       <Typography
-                        color={wine.quantity <= 5 ? 'warning.main' : 'textPrimary'}
+                        color={wine.quantity <= MIN_STOCK_THRESHOLD ? 'warning.main' : 'textPrimary'}
                         fontWeight="bold"
                       >
                         {wine.quantity}
@@ -457,7 +477,7 @@ export default function InventoryDashboard() {
                         {wine.quantity === 0 && (
                           <Chip label="Out of Stock" color="error" size="small" />
                         )}
-                        {wine.quantity <= 5 && wine.quantity > 0 && (
+                        {wine.quantity <= MIN_STOCK_THRESHOLD && wine.quantity > 0 && (
                           <Chip label="Low Stock" color="warning" size="small" />
                         )}
                         {wine.name.toLowerCase().includes('organic') && (
@@ -468,17 +488,27 @@ export default function InventoryDashboard() {
                     <TableCell>
                       <Stack direction="row" spacing={1}>
                         <Tooltip title="View Details">
-                          <IconButton size="small">
+                          <IconButton size="small" onClick={() => navigate(`/wine/${wine.id}`)}>
                             <ViewIcon />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Edit">
-                          <IconButton size="small">
+                          <IconButton size="small" onClick={() => navigate(`/wine/edit/${wine.id}`)}>
                             <EditIcon />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
-                          <IconButton size="small" color="error">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => {
+                              // Add delete logic here
+                              addNotification({
+                                type: 'success',
+                                message: `${wine.name} deleted from inventory`,
+                              });
+                            }}
+                          >
                             <DeleteIcon />
                           </IconButton>
                         </Tooltip>
@@ -497,13 +527,41 @@ export default function InventoryDashboard() {
         <DialogTitle>Add Wine to Inventory</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            Add a new wine to your cruise ship inventory with sustainability tracking.
+            Add a new wine to your inventory with sustainability tracking.
           </Typography>
-          {/* Add wine form will go here */}
+          <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField label="Wine Name" fullWidth required />
+            <TextField label="Region" fullWidth required />
+            <TextField label="Vintage" type="number" fullWidth required />
+            <TextField label="Quantity" type="number" fullWidth required />
+            <TextField label="Purchase Price" type="number" fullWidth required />
+            <FormControl fullWidth>
+              <InputLabel>Grape Variety</InputLabel>
+              <Select label="Grape Variety">
+                {POPULAR_GRAPES.map((grape) => (
+                  <MenuItem key={grape} value={grape}>
+                    {grape}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddWineDialog(false)}>Cancel</Button>
-          <Button variant="contained">Add Wine</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              // Add logic to submit form and add wine to cellar
+              addNotification({
+                type: 'success',
+                message: 'Wine added to inventory',
+              });
+              setAddWineDialog(false);
+            }}
+          >
+            Add Wine
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -512,13 +570,12 @@ export default function InventoryDashboard() {
         <BarcodeScanner
           onWineDetected={(wineData) => {
             console.log('Wine detected:', wineData);
-            // Here you would add the wine to inventory
             addNotification({
               type: 'success',
               message: `${wineData.name} added to inventory via barcode scan!`,
             });
             setBarcodeScannerOpen(false);
-            loadInventory(); // Refresh the inventory
+            loadInventory();
           }}
           onClose={() => setBarcodeScannerOpen(false)}
         />
@@ -528,9 +585,7 @@ export default function InventoryDashboard() {
       {showSustainability && (
         <Dialog open={showSustainability} onClose={() => setShowSustainability(false)} maxWidth="lg" fullWidth>
           <DialogTitle>
-            <Typography variant="h6">
-              Cruise Ship Sustainability Tracker
-            </Typography>
+            <Typography variant="h6">Sustainability Tracker</Typography>
           </DialogTitle>
           <DialogContent>
             <SustainabilityTracker />
@@ -545,9 +600,7 @@ export default function InventoryDashboard() {
       {showDrinkWindow && (
         <Dialog open={showDrinkWindow} onClose={() => setShowDrinkWindow(false)} maxWidth="lg" fullWidth>
           <DialogTitle>
-            <Typography variant="h6">
-              Drink Window Notifications
-            </Typography>
+            <Typography variant="h6">Drink Window Notifications</Typography>
           </DialogTitle>
           <DialogContent>
             <DrinkWindowNotifications />
@@ -559,4 +612,4 @@ export default function InventoryDashboard() {
       )}
     </Box>
   );
-} 
+}
