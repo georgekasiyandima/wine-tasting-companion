@@ -133,37 +133,12 @@ export default function Analytics() {
 
     switch (range) {
       case 'month':
-<<<<<<< HEAD
-        return wineList.filter((wine) => {
-          const wineDate = new Date(wine.timestamp);
-          return wineDate.getMonth() === currentMonth && wineDate.getFullYear() === currentYear;
-        });
-      case 'quarter':
-        return wineList.filter((wine) => {
-=======
-        return wineList.filter(wine => {
-          if (!wine.timestamp || isNaN(wine.timestamp)) return false;
-          const wineDate = new Date(wine.timestamp);
-          return !isNaN(wineDate.getTime()) && 
-                 wineDate.getMonth() === currentMonth && 
-                 wineDate.getFullYear() === currentYear;
-        });
-      case 'quarter':
-        return wineList.filter(wine => {
-          if (!wine.timestamp || isNaN(wine.timestamp)) return false;
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
           const wineDate = new Date(wine.timestamp);
           if (isNaN(wineDate.getTime())) return false;
           const quarterStart = new Date(currentYear, Math.floor(currentMonth / 3) * 3, 1);
           return wineDate >= quarterStart;
         });
       case 'year':
-<<<<<<< HEAD
-        return wineList.filter((wine) => {
-=======
-        return wineList.filter(wine => {
-          if (!wine.timestamp || isNaN(wine.timestamp)) return false;
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
           const wineDate = new Date(wine.timestamp);
           return !isNaN(wineDate.getTime()) && wineDate.getFullYear() === currentYear;
         });
@@ -173,173 +148,36 @@ export default function Analytics() {
   };
 
   const calculateAnalytics = (wineList: Wine[]): WineAnalytics => {
-<<<<<<< HEAD
-    const totalWines = wineList.length;
-    const averageRating =
-      totalWines > 0 ? wineList.reduce((sum, wine) => sum + wine.rating, 0) / totalWines : 0;
-
-    // Region statistics
-    const regionStats = wineList.reduce(
-      (acc, wine) => {
-        const region = wine.region || 'Unknown';
-        if (!acc[region]) {
-          acc[region] = { count: 0, totalRating: 0 };
-        }
-        acc[region].count++;
-        acc[region].totalRating += wine.rating;
-        return acc;
-      },
-      {} as Record<string, { count: number; totalRating: number }>
-    );
-=======
-    const validWines = wineList.filter(wine => 
-      wine && 
-      typeof wine.rating === 'number' && 
-      !isNaN(wine.rating) && 
-      wine.rating >= 1 && 
-      wine.rating <= 5
-    );
-    
-    const totalWines = validWines.length;
-    const averageRating = totalWines > 0 
-      ? validWines.reduce((sum, wine) => sum + wine.rating, 0) / totalWines 
-      : 0;
-
-    // Region statistics
-    const regionStats = validWines.reduce((acc, wine) => {
-      const region = wine.region?.trim() || 'Unknown';
-      if (!acc[region]) {
-        acc[region] = { count: 0, totalRating: 0 };
-      }
-      acc[region].count++;
-      acc[region].totalRating += wine.rating;
-      return acc;
-    }, {} as Record<string, { count: number; totalRating: number }>);
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
 
     const favoriteRegions = Object.entries(regionStats)
       .map(([region, stats]) => ({
         region,
         count: stats.count,
-<<<<<<< HEAD
-        averageRating: stats.totalRating / stats.count,
-=======
-        averageRating: stats.count > 0 ? Number((stats.totalRating / stats.count).toFixed(2)) : 0
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
     // Grape statistics
-<<<<<<< HEAD
-    const grapeStats = wineList.reduce(
-      (acc, wine) => {
-        const grape = wine.grape || 'Unknown';
-        if (!acc[grape]) {
-          acc[grape] = { count: 0, totalRating: 0 };
-        }
-        acc[grape].count++;
-        acc[grape].totalRating += wine.rating;
-        return acc;
-      },
-      {} as Record<string, { count: number; totalRating: number }>
-    );
-=======
-    const grapeStats = validWines.reduce((acc, wine) => {
-      const grape = wine.grape?.trim() || 'Unknown';
-      if (!acc[grape]) {
-        acc[grape] = { count: 0, totalRating: 0 };
-      }
-      acc[grape].count++;
-      acc[grape].totalRating += wine.rating;
-      return acc;
-    }, {} as Record<string, { count: number; totalRating: number }>);
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
 
     const favoriteGrapes = Object.entries(grapeStats)
       .map(([grape, stats]) => ({
         grape,
         count: stats.count,
-<<<<<<< HEAD
-        averageRating: stats.totalRating / stats.count,
-=======
-        averageRating: stats.count > 0 ? Number((stats.totalRating / stats.count).toFixed(2)) : 0
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
     // Rating distribution
-<<<<<<< HEAD
-    const ratingDistribution: Record<keyof typeof RATING_LABELS, number> = {
-      '1': 0,
-      '2': 0,
-      '3': 0,
-      '4': 0,
-      '5': 0,
-    };
-    wineList.forEach((wine) => {
-      const ratingNum = Number(wine.rating);
-      if (
-        !isNaN(ratingNum) &&
-        Number.isInteger(ratingNum) &&
-        ratingNum >= 1 &&
-        ratingNum <= 5
-      ) {
-        const ratingKey = ratingNum.toString() as keyof typeof RATING_LABELS;
-=======
-    const ratingDistribution = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
-    validWines.forEach(wine => {
-      const rating = Math.round(wine.rating);
-      if (rating >= 1 && rating <= 5) {
-        const ratingKey = rating.toString() as keyof typeof ratingDistribution;
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
         ratingDistribution[ratingKey]++;
       }
     });
 
     // Monthly statistics
-<<<<<<< HEAD
-    const monthlyStats = wineList.reduce(
-      (acc, wine) => {
-        const date = new Date(wine.timestamp);
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        if (!acc[monthKey]) {
-          acc[monthKey] = { count: 0, totalRating: 0 };
-        }
-        acc[monthKey].count++;
-        acc[monthKey].totalRating += wine.rating;
-        return acc;
-      },
-      {} as Record<string, { count: number; totalRating: number }>
-    );
-=======
-    const monthlyStats = validWines.reduce((acc, wine) => {
-      if (!wine.timestamp || isNaN(wine.timestamp)) return acc;
-      
-      const date = new Date(wine.timestamp);
-      if (isNaN(date.getTime())) return acc;
-      
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      
-      if (!acc[monthKey]) {
-        acc[monthKey] = { count: 0, totalRating: 0 };
-      }
-      acc[monthKey].count++;
-      acc[monthKey].totalRating += wine.rating;
-      return acc;
-    }, {} as Record<string, { count: number; totalRating: number }>);
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
 
     const monthlyTastings = Object.entries(monthlyStats)
       .map(([month, stats]) => ({
         month,
         count: stats.count,
-<<<<<<< HEAD
-        averageRating: stats.totalRating / stats.count,
-=======
-        averageRating: stats.count > 0 ? Number((stats.totalRating / stats.count).toFixed(2)) : 0
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
       }))
       .sort((a, b) => a.month.localeCompare(b.month))
       .slice(-12);

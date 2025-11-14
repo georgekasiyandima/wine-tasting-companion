@@ -118,10 +118,6 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   }, [state.theme]);
 
-<<<<<<< HEAD
-  // Memoize addNotification to ensure stable reference
-  const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
-=======
   // Check for existing authentication on app start
   useEffect(() => {
     const checkAuth = async () => {
@@ -155,9 +151,8 @@ export function AppProvider({ children }: AppProviderProps) {
     checkAuth();
   }, []);
 
-  // Helper functions
-  const addNotification = (notification: Omit<Notification, 'id'>) => {
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
+  // Memoize addNotification to ensure stable reference
+  const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
     const id = Date.now().toString();
     const newNotification: Notification = {
       ...notification,
@@ -272,11 +267,8 @@ export function AppProvider({ children }: AppProviderProps) {
     removeNotification,
     toggleTheme,
     updateUserPreferences,
-<<<<<<< HEAD
-=======
     login,
     logout
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -28,13 +28,9 @@ import {
   CheckCircle as CheckIcon,
   Error as ErrorIcon,
   WineBar as WineIcon,
-<<<<<<< HEAD
-  LocalFlorist as EcoIcon,
-=======
   Nature as EcoIcon,
   TrendingUp as TrendingUpIcon,
   Info as InfoIcon,
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
 } from '@mui/icons-material';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useApp } from '@/context/AppContext';
