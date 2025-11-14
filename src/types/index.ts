@@ -234,17 +234,29 @@ export interface WineCellar {
   updatedAt: number;
 }
 
-export interface CellarWine extends Wine {
-  cellarId: string;
+export interface CellarWine {
+  id: string;
+  name: string;
+  region: string;
+  vintage: string | number;
   quantity: number;
-  purchaseDate: number;
   purchasePrice: number;
-  storageLocation: string; // e.g., "Top Shelf", "Bottom Rack", "Climate Controlled"
-  agingPotential: number; // years
-  drinkByDate?: number;
+  currentValue?: number;
+  grape?: string;
+  winery?: string;
+  drinkByDate?: number | string;
   notes?: string;
-  isOpened: boolean;
+  isSustainable?: boolean;
+  addedDate?: number;
+  cellarId: string;
+  // Additional cellar-specific fields
+  purchaseDate?: number;
+  storageLocation?: string;
+  agingPotential?: number;
+  isOpened?: boolean;
   openedDate?: number;
+  userId?: string;
+  timestamp?: number;
 }
 
 export interface CellarAnalytics {

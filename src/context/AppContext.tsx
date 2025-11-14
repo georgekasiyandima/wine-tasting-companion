@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, ReactNode } from 'react';
 import { Theme, Notification, User, UserPreferences } from '@/types';
 import { STORAGE_KEYS } from '@/constants';
-import { AuthService } from '@/api/firebase';
+import { demoLogin, isAuthenticated, getToken, logout as authLogout } from '@/api/auth';
 
 // State interface
 interface AppState {
@@ -71,6 +71,8 @@ interface AppContextType {
   removeNotification: (id: string) => void;
   toggleTheme: () => void;
   updateUserPreferences: (preferences: Partial<UserPreferences>) => void;
+  login: () => Promise<void>;
+  logout: () => void;
 }
 
 // Create context
@@ -116,8 +118,46 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   }, [state.theme]);
 
+<<<<<<< HEAD
   // Memoize addNotification to ensure stable reference
   const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
+=======
+  // Check for existing authentication on app start
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        if (isAuthenticated()) {
+          // User is already authenticated, we can fetch their profile
+          // For now, we'll use a demo user since we don't have profile endpoint yet
+          const demoUser: User = {
+            id: 'demo-user-123',
+            email: 'demo@winecompanion.com',
+            displayName: 'Demo User',
+            createdAt: Date.now()
+          };
+          dispatch({ type: 'SET_USER', payload: demoUser });
+        } else {
+          // Auto-login with demo user for development
+          try {
+            const { user } = await demoLogin();
+            dispatch({ type: 'SET_USER', payload: user });
+          } catch (error) {
+            console.error('Demo login failed:', error);
+            dispatch({ type: 'SET_USER', payload: null });
+          }
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        dispatch({ type: 'SET_USER', payload: null });
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  // Helper functions
+  const addNotification = (notification: Omit<Notification, 'id'>) => {
+>>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
     const id = Date.now().toString();
     const newNotification: Notification = {
       ...notification,
@@ -199,6 +239,32 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   }, [state.userPreferences, addNotification]);
 
+  const login = async () => {
+    try {
+      const { user } = await demoLogin();
+      dispatch({ type: 'SET_USER', payload: user });
+      addNotification({
+        type: 'success',
+        message: 'Successfully logged in!'
+      });
+    } catch (error) {
+      console.error('Login failed:', error);
+      addNotification({
+        type: 'error',
+        message: 'Login failed. Please try again.'
+      });
+    }
+  };
+
+  const logout = () => {
+    authLogout();
+    dispatch({ type: 'SET_USER', payload: null });
+    addNotification({
+      type: 'info',
+      message: 'Successfully logged out!'
+    });
+  };
+
   const value: AppContextType = {
     state,
     dispatch,
@@ -206,6 +272,11 @@ export function AppProvider({ children }: AppProviderProps) {
     removeNotification,
     toggleTheme,
     updateUserPreferences,
+<<<<<<< HEAD
+=======
+    login,
+    logout
+>>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

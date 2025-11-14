@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -53,16 +54,23 @@ import AnimatedCard from '@/components/common/AnimatedCard';
 import BarcodeScanner from './BarcodeScanner';
 import SustainabilityTracker from './SustainabilityTracker';
 import DrinkWindowNotifications from './DrinkWindowNotifications';
+=======
 
-interface InventoryStats {
-  totalWines: number;
-  totalValue: number;
-  lowStockItems: number;
-  outOfStockItems: number;
-  sustainableWines: number;
-  expiringWines: number;
-}
+     import React, { useState, useEffect, useCallback } from 'react';
+import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, IconButton, CircularProgress, Alert } from '@mui/material';
+import { Edit, Delete } from '@mui/icons-material';
+import { cleanCellarService } from '@/api/backend';
+import { WineCellar, CellarWine } from '@/types';
+import WeatherWidget from '@/components/common/WeatherWidget';
+import { useApp } from '@/context/AppContext';
+>>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
 
+     interface SortConfig {
+       key: keyof CellarWine;
+       direction: 'asc' | 'desc';
+     }
+
+<<<<<<< HEAD
 interface StockAlert {
   id: string;
   wineName: string;
@@ -77,24 +85,17 @@ export default function InventoryDashboard() {
   const navigate = useNavigate();
   const { state, addNotification } = useApp();
 
+=======
+     const InventoryDashboard: React.FC = () => {
+  const { state: { user }, login } = useApp();
+>>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
   const [cellars, setCellars] = useState<WineCellar[]>([]);
-  const [inventory, setInventory] = useState<CellarWine[]>([]);
-  const [stats, setStats] = useState<InventoryStats>({
-    totalWines: 0,
-    totalValue: 0,
-    lowStockItems: 0,
-    outOfStockItems: 0,
-    sustainableWines: 0,
-    expiringWines: 0,
-  });
-  const [alerts, setAlerts] = useState<StockAlert[]>([]);
+  const [wines, setWines] = useState<CellarWine[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCellar, setSelectedCellar] = useState<string>('');
-  const [addWineDialog, setAddWineDialog] = useState(false);
-  const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
-  const [showSustainability, setShowSustainability] = useState(false);
-  const [showDrinkWindow, setShowDrinkWindow] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
+<<<<<<< HEAD
   useEffect(() => {
     if (!state.user?.id) {
       addNotification({
@@ -106,10 +107,26 @@ export default function InventoryDashboard() {
     }
     loadInventory();
   }, [state.user?.id, navigate, addNotification]);
+=======
+  // Debug logging
+  console.log('InventoryDashboard render - user:', user);
+  console.log('InventoryDashboard render - loading:', loading);
+  console.log('InventoryDashboard render - error:', error);
 
-  const loadInventory = async () => {
+         const loadInventory = useCallback(async () => {
+    console.log('loadInventory called - user:', user);
+    
+    if (!user?.id) {
+      console.error('No user ID available');
+      setError('User not authenticated');
+      setLoading(false);
+      return;
+    }
+>>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
+
     try {
       setLoading(true);
+<<<<<<< HEAD
       const userCellars = await cellarService.getCellars(state.user?.id || '');
       setCellars(userCellars);
 
@@ -123,18 +140,38 @@ export default function InventoryDashboard() {
           type: 'info',
           message: 'No cellars found. Please create a cellar.',
         });
+=======
+      setError(null);
+      console.log('Loading inventory for user:', user.id);
+      const userCellars = await cleanCellarService.getCellars(user.id);
+      console.log('Fetched cellars:', userCellars);
+
+      let allWines: CellarWine[] = [];
+      for (const cellar of userCellars) {
+        const cellarWines = await cleanCellarService.getCellarWines(user.id, cellar.id);
+        allWines = [...allWines, ...cellarWines];
+>>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
       }
+      console.log('Fetched wines:', allWines);
+
+      setCellars(userCellars);
+      setWines(allWines);
     } catch (error) {
       console.error('Error loading inventory:', error);
+<<<<<<< HEAD
       addNotification({
         type: 'error',
         message: `Failed to load inventory: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
+=======
+      setError(error instanceof Error ? error.message : 'Failed to load inventory');
+>>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
+<<<<<<< HEAD
   const updateInventoryStatsAndAlerts = (wines: CellarWine[]) => {
     let totalWines = 0;
     let totalValue = 0;
@@ -201,10 +238,36 @@ export default function InventoryDashboard() {
     });
     setAlerts(newAlerts);
   };
+=======
+       useEffect(() => {
+         loadInventory();
+       }, [loadInventory]);
 
-  const handleCellarChange = async (cellarId: string) => {
-    setSelectedCellar(cellarId);
+       const handleSort = (key: keyof CellarWine) => {
+         let direction: 'asc' | 'desc' = 'asc';
+         if (sortConfig?.key === key && sortConfig.direction === 'asc') {
+           direction = 'desc';
+         }
+         setSortConfig({ key, direction });
+
+         const sortedWines = [...wines].sort((a, b) => {
+           if (a[key] < b[key]) return direction === 'asc' ? -1 : 1;
+           if (a[key] > b[key]) return direction === 'asc' ? 1 : -1;
+           return 0;
+         });
+         setWines(sortedWines);
+       };
+>>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
+
+       const handleEditWine = (wine: CellarWine) => {
+         console.log('Editing wine:', wine);
+         // Implement edit logic (e.g., open a modal)
+       };
+
+         const handleDeleteWine = async (cellarId: string, wineId: string) => {
+    if (!user?.id) return;
     try {
+<<<<<<< HEAD
       const cellarWines = await cellarService.getCellarWines(cellarId);
       setInventory(cellarWines);
       updateInventoryStatsAndAlerts(cellarWines);
@@ -302,10 +365,115 @@ export default function InventoryDashboard() {
             onClick={() => setShowDrinkWindow(true)}
           >
             Drink Window
+=======
+      await cleanCellarService.deleteWine(user.id, cellarId, wineId);
+      setWines(wines.filter(wine => wine.id !== wineId));
+    } catch (error) {
+      console.error('Error deleting wine:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete wine');
+    }
+  };
+
+       if (loading) {
+         return (
+           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+             <CircularProgress />
+           </Box>
+         );
+       }
+
+         return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        Wine Inventory Dashboard
+      </Typography>
+
+      <WeatherWidget />
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {!user ? (
+        <Box sx={{ textAlign: 'center', mt: 4 }}>
+          <Typography variant="h6" gutterBottom>
+            Please log in to view your wine inventory
+          </Typography>
+          <Button variant="contained" onClick={login} sx={{ mt: 2 }}>
+            Demo Login
+>>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
           </Button>
         </Box>
-      </Box>
+      ) : cellars.length === 0 ? (
+        <Typography>No cellars found. Create a cellar to start managing your wines.</Typography>
+      ) : (
+             <TableContainer component={Paper}>
+               <Table>
+                 <TableHead>
+                   <TableRow>
+                     <TableCell>
+                       <Box sx={{ display: 'flex', alignItems: 'center' }} onClick={() => handleSort('name')}>
+                         Name
+                         {sortConfig?.key === 'name' && (
+                           <Box sx={{ padding: 1 }}>{sortConfig.direction === 'asc' ? '↑' : '↓'}</Box>
+                         )}
+                       </Box>
+                     </TableCell>
+                     <TableCell>
+                       <Box sx={{ display: 'flex', alignItems: 'center' }} onClick={() => handleSort('region')}>
+                         Region
+                         {sortConfig?.key === 'region' && (
+                           <Box sx={{ padding: 1 }}>{sortConfig.direction === 'asc' ? '↑' : '↓'}</Box>
+                         )}
+                       </Box>
+                     </TableCell>
+                     <TableCell>
+                       <Box sx={{ display: 'flex', alignItems: 'center' }} onClick={() => handleSort('vintage')}>
+                         Vintage
+                         {sortConfig?.key === 'vintage' && (
+                           <Box sx={{ padding: 1 }}>{sortConfig.direction === 'asc' ? '↑' : '↓'}</Box>
+                         )}
+                       </Box>
+                     </TableCell>
+                     <TableCell>
+                       <Box sx={{ display: 'flex', alignItems: 'center' }} onClick={() => handleSort('quantity')}>
+                         Quantity
+                         {sortConfig?.key === 'quantity' && (
+                           <Box sx={{ padding: 1 }}>{sortConfig.direction === 'asc' ? '↑' : '↓'}</Box>
+                         )}
+                       </Box>
+                     </TableCell>
+                     <TableCell>Actions</TableCell>
+                   </TableRow>
+                 </TableHead>
+                 <TableBody>
+                   {wines.map((wine) => (
+                     <TableRow key={wine.id}>
+                       <TableCell>{wine.name}</TableCell>
+                       <TableCell>{wine.region}</TableCell>
+                       <TableCell>{wine.vintage}</TableCell>
+                       <TableCell>{wine.quantity}</TableCell>
+                       <TableCell>
+                         <IconButton onClick={() => handleEditWine(wine)}>
+                           <Edit />
+                         </IconButton>
+                         <IconButton onClick={() => handleDeleteWine(wine.cellarId, wine.id)}>
+                           <Delete />
+                         </IconButton>
+                       </TableCell>
+                     </TableRow>
+                   ))}
+                 </TableBody>
+               </Table>
+             </TableContainer>
+           )}
+         </Box>
+       );
+     };
 
+<<<<<<< HEAD
       {/* Cellar Selector */}
       {cellars.length > 0 && (
         <FormControl fullWidth sx={{ mb: 3 }}>
@@ -613,3 +781,6 @@ export default function InventoryDashboard() {
     </Box>
   );
 }
+=======
+     export default InventoryDashboard;
+>>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
