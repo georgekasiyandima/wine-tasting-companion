@@ -3,13 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-<<<<<<< HEAD
-    "@emotion/react": "^11.11.1",
-    "@emotion/styled": "^11.11.0",
-=======
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
     "@mui/icons-material": "^5.18.0",
     "@mui/material": "^5.18.0",
     "@mui/x-charts": "^6.18.0",

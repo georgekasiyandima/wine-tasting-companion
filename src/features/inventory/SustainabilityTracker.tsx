@@ -24,10 +24,7 @@ import {
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import {
-<<<<<<< HEAD
-=======
   Nature as EcoIcon,
->>>>>>> 360e5f7593b872db021e642b4b663c55e0cd8fab
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
   Warning as WarningIcon,
